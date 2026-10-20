@@ -240,7 +240,8 @@ bool Prepare()
         +";encounters="+std::to_string(config->disableRandomEncounters ? 1 : 0)
         +";run="+std::to_string(config->runFromTrainerBattles ? 1 : 0)
         +";obedience=ot-independent;capture=wild-one-debit-v1;modern="+std::to_string(CommunityModernRules_Enabled())
-        +";ability0110-v1="+std::to_string(CommunityAbilityUpdates_Enabled());
+        +";ability0110-v2="+std::to_string(CommunityAbilityUpdates_Enabled())
+        +";native-stream=v2;forms-v1="+std::to_string(CommunityModernRules_Enabled());
     const char legacy[]="pokeplatinum-pc-port-35067868-community-fairy-v1";
     std::string catalogHash=Hash(legacy,sizeof(legacy)-1);
     if (CommunityModernRules_Enabled()) {
@@ -254,7 +255,7 @@ bool Prepare()
         append(catalog->iconPalettes,sizeof(catalog->iconPalettes)); append(catalog->formGraphics,sizeof(catalog->formGraphics));
         append(catalog->fairyMovePalette,sizeof(catalog->fairyMovePalette));
         append(catalog->modernMoves,sizeof(catalog->modernMoves)); append(catalog->statStages,sizeof(catalog->statStages));
-        append(catalog->sideEffectScripts,sizeof(catalog->sideEffectScripts)); append(catalog->metronomeExclusions,sizeof(catalog->metronomeExclusions));
+        append(catalog->sideEffectScripts,sizeof(catalog->sideEffectScripts)); append(catalog->metronomeExclusions,sizeof(catalog->metronomeExclusions)); append(catalog->formStats,sizeof(catalog->formStats));
         catalogHash=Hash(bytes.data(),bytes.size());
     }
     return Online().PrepareLink(catalogHash,Hash(rules.data(),rules.size()));

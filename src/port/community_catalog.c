@@ -32,7 +32,7 @@ int CommunityCatalog_Decode(const uint8_t *bytes, size_t length, CommunityCatalo
     if (out == NULL) return 0;
     out->valid = 0;
     if (bytes == NULL || length != COMMUNITY_CATALOG_FILE_BYTES
-        || memcmp(bytes, "PTCAT04\0", 8) != 0
+        || memcmp(bytes, "PTCAT05\0", 8) != 0
         || memcmp(bytes + 8, referenceHash, sizeof(referenceHash)) != 0
         || Read32(bytes + 40) != COMMUNITY_CATALOG_PAYLOAD_BYTES
         || Crc32(bytes + COMMUNITY_CATALOG_HEADER_BYTES, COMMUNITY_CATALOG_PAYLOAD_BYTES) != Read32(bytes + 44)) {
@@ -54,6 +54,7 @@ int CommunityCatalog_Decode(const uint8_t *bytes, size_t length, CommunityCatalo
     const uint8_t *statStages = modernMoves + sizeof(out->modernMoves);
     const uint8_t *sideEffectScripts = statStages + sizeof(out->statStages);
     const uint8_t *metronomeExclusions = sideEffectScripts + sizeof(out->sideEffectScripts);
+    const uint8_t *formStats = metronomeExclusions + sizeof(out->metronomeExclusions);
     for (size_t i = 0; i < COMMUNITY_MODERN_MOVE_COUNT; i++) {
         const uint8_t *r = modernMoves + i * 16;
         int priority = r[10] < 128 ? r[10] : (int)r[10] - 256;
@@ -145,6 +146,22 @@ int CommunityCatalog_Decode(const uint8_t *bytes, size_t length, CommunityCatalo
             if (Read16(earlier) == species && earlier[2] == record[2]) return 0;
         }
     }
+    for (size_t i = 0; i < COMMUNITY_FORM_STAT_COUNT; i++) {
+        const uint8_t *record = formStats + i * 8;
+        unsigned species = Read16(record);
+        if (species < COMMUNITY_MODERN_SPECIES_FIRST || species >= COMMUNITY_MODERN_SPECIES_FIRST + COMMUNITY_MODERN_SPECIES_COUNT || !record[2]) return 0;
+        for (size_t stat = 3; stat < 8; stat++) if (!record[stat]) return 0;
+        int graphicsFound = 0;
+        for (size_t j = 0; j < COMMUNITY_FORM_GRAPHICS_COUNT; j++) {
+            const uint8_t *graphics = formGraphics + j * 6;
+            if (Read16(graphics) == species && graphics[2] == record[2]) graphicsFound = 1;
+        }
+        if (!graphicsFound) return 0;
+        for (size_t j = 0; j < i; j++) {
+            const uint8_t *earlier = formStats + j * 8;
+            if (Read16(earlier) == species && earlier[2] == record[2]) return 0;
+        }
+    }
     memcpy(out->personal, personal, sizeof(out->personal));
     memcpy(out->learnsets, learnsets, sizeof(out->learnsets));
     memcpy(out->supplements, supplements, sizeof(out->supplements));
@@ -161,6 +178,7 @@ int CommunityCatalog_Decode(const uint8_t *bytes, size_t length, CommunityCatalo
     memcpy(out->statStages, statStages, sizeof(out->statStages));
     memcpy(out->sideEffectScripts, sideEffectScripts, sizeof(out->sideEffectScripts));
     memcpy(out->metronomeExclusions, metronomeExclusions, sizeof(out->metronomeExclusions));
+    memcpy(out->formStats, formStats, sizeof(out->formStats));
     out->valid = 1;
     return 1;
 }
@@ -381,3 +399,17 @@ const CommunityCatalog *CommunityCatalog_Runtime(void)
     return NULL;
 }
 #endif
+
+int CommunityCatalog_FormStats(const CommunityCatalog *catalog, unsigned species, unsigned form, uint8_t out[5])
+{
+    if (!catalog || !catalog->valid || !out || !form || species < COMMUNITY_MODERN_SPECIES_FIRST
+        || species >= COMMUNITY_MODERN_SPECIES_FIRST + COMMUNITY_MODERN_SPECIES_COUNT) return 0;
+    for (size_t i = 0; i < COMMUNITY_FORM_STAT_COUNT; i++) {
+        const uint8_t *record = catalog->formStats[i];
+        if (Read16(record) == species && record[2] == form) {
+            memcpy(out, record + 3, 5);
+            return 1;
+        }
+    }
+    return 0;
+}

@@ -37,6 +37,8 @@
 #include "battle/capture_rules.h"
 #include "battle/btlcmd.h"
 #include "battle/common.h"
+#include "battle/community_barrier_rules.h"
+#include "battle/community_forms.h"
 #include "battle/terrain.h"
 #include "battle_anim/ov12_02235E94.h"
 #include "battle_anim/struct_ov12_02237728.h"
@@ -1905,6 +1907,17 @@ static BOOL BtlCmd_CompareVarToValue(BattleSystem *battleSys, BattleContext *bat
 
     int *data = BattleScript_VarAddress(battleSys, battleCtx, srcVar);
 
+    /* Give this one hostile-effect Safeguard comparison an unshielded view.
+     * The actual side condition remains active for every other battler. */
+    int conditionView;
+    if (srcVar == BTLVAR_SIDE_CONDITIONS_EFFECT_MON && compareTo == SIDE_CONDITION_SAFEGUARD
+        && (battleCtx->sideEffectType == SIDE_EFFECT_TYPE_DIRECT || battleCtx->sideEffectType == SIDE_EFFECT_TYPE_INDIRECT)
+        && battleCtx->sideEffectMon != battleCtx->attacker
+        && CommunityAbility_BattlerInfiltrates(battleCtx, battleCtx->attacker)) {
+        conditionView = *data & ~SIDE_CONDITION_SAFEGUARD;
+        data = &conditionView;
+    }
+
     switch (op) {
     case OPCODE_EQU:
         if (*data != compareTo) {
@@ -2660,7 +2673,9 @@ static BOOL BtlCmd_SetMultiHit(BattleSystem *battleSys, BattleContext *battleCtx
 
     if (battleCtx->multiHitNumHits == 0) {
         if (hits == 0) {
-            if (Battler_Ability(battleCtx, battleCtx->attacker) == ABILITY_SKILL_LINK) {
+            if (CommunityForms_BondShuriken(battleCtx, battleCtx->moveCur, battleCtx->attacker)) {
+                hits = 3;
+            } else if (Battler_Ability(battleCtx, battleCtx->attacker) == ABILITY_SKILL_LINK) {
                 hits = 5;
             } else {
                 hits = BattleSystem_RandNext(battleSys) & 3;
@@ -2902,7 +2917,8 @@ static BOOL BtlCmd_ChangeStatStage(BattleSystem *battleSys, BattleContext *battl
     } else {
         if ((battleCtx->sideEffectFlags & MOVE_SIDE_EFFECT_CANNOT_PREVENT) == FALSE) {
             if (battleCtx->attacker != battleCtx->sideEffectMon) {
-                if (battleCtx->sideConditions[BattleSystem_GetBattlerSide(battleSys, battleCtx->sideEffectMon)].mistTurns) {
+                if (battleCtx->sideConditions[BattleSystem_GetBattlerSide(battleSys, battleCtx->sideEffectMon)].mistTurns
+                    && !CommunityAbility_BattlerInfiltrates(battleCtx, battleCtx->attacker)) {
                     battleCtx->msgBuffer.id = BattleStrings_Text_PokemonIsProtectedByMist_Ally; // "{0} is protected by Mist!"
                     battleCtx->msgBuffer.tags = TAG_NICKNAME;
                     battleCtx->msgBuffer.params[0] = BattleSystem_NicknameTag(battleCtx, battleCtx->sideEffectMon);
@@ -2948,7 +2964,8 @@ static BOOL BtlCmd_ChangeStatStage(BattleSystem *battleSys, BattleContext *battl
                 } else if (Battler_IgnorableAbility(battleCtx, battleCtx->attacker, battleCtx->sideEffectMon, ABILITY_SHIELD_DUST) == TRUE
                     && battleCtx->sideEffectType == SIDE_EFFECT_TYPE_INDIRECT) {
                     result = 1;
-                } else if (battleCtx->battleMons[battleCtx->sideEffectMon].statusVolatile & VOLATILE_CONDITION_SUBSTITUTE) {
+                } else if ((battleCtx->battleMons[battleCtx->sideEffectMon].statusVolatile & VOLATILE_CONDITION_SUBSTITUTE)
+                    && !CommunityAbility_BattlerInfiltrates(battleCtx, battleCtx->attacker)) {
                     result = 2;
                 }
             } else if (mon->statBoosts[BATTLE_STAT_ATTACK + statOffset] == MIN_STAT_STAGE) {
@@ -9210,6 +9227,9 @@ static BOOL BtlCmd_CheckSubstitute(BattleSystem *battleSys, BattleContext *battl
     int battler = BattleScript_Battler(battleSys, battleCtx, inBattler);
     if ((battleCtx->battleMons[battler].statusVolatile & VOLATILE_CONDITION_SUBSTITUTE)
         || (battleCtx->selfTurnFlags[battler].statusFlags & SELF_TURN_FLAG_SUBSTITUTE_HIT)) {
+        if (battler != battleCtx->attacker && CommunityAbility_BattlerInfiltrates(battleCtx, battleCtx->attacker)) {
+            return FALSE;
+        }
         BattleScript_Iter(battleCtx, jumpSubActive);
     }
 

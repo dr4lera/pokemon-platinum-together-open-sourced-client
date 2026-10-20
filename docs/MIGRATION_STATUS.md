@@ -31,8 +31,8 @@ prepared, unmodified copy of the supplied game.
 | Accounts, parties, chat | Native signed adapter and real-backend fixtures pass; game UI compiles | Rendered flow and packaged HTTPS checks; friends/Inverna actors |
 | Native wireless battles/trades | Own Service, signed game-link backend and semantic WM provider implemented; two-adapter discovery/join/data/cancellation fixtures pass | Two actual source games through native battle/trade screens and interruption recovery |
 | Shared-world co-op/Inverna | User-confirmed on prepared reference clients | Source gameplay implementation and two-client parity checks |
-| Modern species, abilities, forms, moves | Strict V4 numeric catalog, early personal/learnset/evolution consumers and six Fairy moves compile and pass fixtures | Runtime graphics verification, remaining move/ability behavior, cries, registration, dex/save integration |
-| Learnset representation | Bounded decoders and V4 provider compile; all65 hash-pinned lists match offline; supplements and actual consumer fixtures pass | Full later-move behavior and runtime per-species verification |
+| Modern species, abilities, forms, moves | Strict V5 numeric catalog, early personal/learnset/evolution consumers and six Fairy moves compile and pass fixtures | Runtime graphics verification, remaining move/ability behavior, cries, registration, dex/save integration |
+| Learnset representation | Bounded decoders and V5 provider compile; all65 hash-pinned lists match offline; supplements and actual consumer fixtures pass | Full later-move behavior and runtime per-species verification |
 | Saves/trade recovery | Reference format and journal partly inspected | Own compatible IO, closed-copy migration, interruption checks |
 | Rendering, controls, audio, story | Public base engine available | Match reference behavior and chosen/custom trainer appearances |
 | 0.1.10 additions | Installed artifact independently hash-pinned; private archive comparison started | Separate code/behavior audit and tested update adapters |
@@ -68,7 +68,7 @@ acknowledgment and discard unindicated old-epoch data after cancellation. SDK
 callback recipients are fixtures; these are not two-game battle/trade evidence.
 
 The modern gate is explicitly selected before startup and remains immutable.
-Its V4 file is generated privately from the pinned reference; no catalog bytes
+Its V5 file is generated privately from the pinned reference; no catalog bytes
 or reference assets ship here. Original source-generated animation archives may
 be privately merged with only the six reviewed scripts, particle485 and icon343.
 Whole patched animation archives are not enabled by the restricted overlay.
@@ -87,7 +87,9 @@ contain no bundled assets. A character-sprite ownership fix retains NCGR data
 through decrypt/Spinda/tiling and passes a regression that fails the old source.
 The desktop SDK palette loader now handles validated packed palettes with a
 larger expanded VRAM extent. The full Windows client links with these changes;
-actual modern species rendering and native battle completion remain pending.
+fresh single-client Fairy and Sylveon battles completed normally, with visible
+modern sprites and unchanged capped EXP. This is distinct from two-client
+battle/trade completion.
 
 ## Newly available update reference
 
@@ -99,8 +101,18 @@ A separate private snapshot verifies all14 package-owned patch archives against
 the installer hashes: six match the retained0.1.7 copy, seven changed and one
 was added. Changed resources include battle subscripts, field scripts/matrices,
 text, species graphics/icons, particles and move animations. The separate native
-reference analysis is underway; this is availability/inventory evidence, not
+reference analysis exported all67,794 recognized internal functions and566
+external entries after bounded timeout retries, with zero remaining export
+failures. This is private pseudocode, not recovered original source or an
+exhaustiveness claim beyond recognized functions. Inventory/export evidence is not
 proof that update features are implemented or that servers accept its client.
 Existing0.1.7 private importers remain pinned and deliberately reject this new
 executable. The source client continues from the tested baseline while update
 differences are reviewed and adapted explicitly.
+
+Two fresh source clients now authenticate, discover each other, render native
+Union Room avatars in color, exchange invitations and confirm teams through the
+normal menus. A native battle completed several synchronized turns before one
+peer reported a receive/parser error and the other later timed out. Battle/trade
+acceptance remains open while that concrete failure is repaired. No original
+profile, save or installed executable was changed by those tests.

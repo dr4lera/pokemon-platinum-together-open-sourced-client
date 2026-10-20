@@ -126,3 +126,14 @@ QA controls and CWM2/runtime ABI2. The previous public Windows CI failure was a
 fixture's machine-specific compiler default; workflow CC/CXX now use the actual
 MSYS installation. Publication lint of the changed source reports zero failures;
 inherited public engine symbol names are retained intentionally.
+
+## Frozen2026-10-20 checkpoint
+
+The full Windows executable links with V5/form scripts, CDX1, native labels,
+communication repairs and the separate trainer-art decoder/download worker.
+Focused fixtures and actual backend regressions pass; see
+[the checkpoint record](CHECKPOINT_2026_10_20.md) for native evidence and limits.
+The prior GitHub build also exposed a GCC16 default-C++20 `char8_t` conversion
+issue in QA paths. Explicit UTF-8 byte conversions repair both sites, and the
+actual guard fixture now passes under C++20 as well as the prior C++17 checks.
+The native parser retry and remaining modernization are not certified complete.

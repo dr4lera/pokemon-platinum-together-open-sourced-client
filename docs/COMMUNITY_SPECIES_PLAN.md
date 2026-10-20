@@ -9,13 +9,13 @@ assets remain private.
 
 ## Available data and boundaries
 
-The private importer now creates a pointer-free V4 catalog with personal data
+The private importer now creates a pointer-free V5 catalog with personal data
 (65 x44), modern learnsets (65 x260), numeric national/height/weight metadata
 (65 x6), evolution data (65 x42), sprite animation/shadow data (65 x89), two-face
 sprite heights (65 x2), icon palettes (65 bytes) and four graphics-form records
 (4 x6), plus the32-byte Fairy move-menu palette. Existing 32 learnset supplements,
-25 type overrides and 70 move override rows are retained. V4 uses a48-byte header
-and36,584-byte payload; V1/V2/V3 caches must be regenerated. Every source table is
+25 type overrides and 70 move override rows are retained. V5 uses a48-byte header
+and36,608-byte payload; V1/V2/V3 caches must be regenerated. Every source table is
 independently hash-pinned after the
 whole reference artifact is verified. No table or string catalog is shipped.
 
@@ -70,7 +70,7 @@ do not synthesize their spelling or cast UTF-8 metadata into DS character codes.
 
 ## Dependency order and acceptance
 
-1. Validate V4 data and early personal/learnset adapters in isolated tests. This
+1. Validate V5 data and early personal/learnset adapters in isolated tests. This
    stage is implemented. Data availability does not register modern species.
 2. Review modern move/ability consumers before creating these species: current
    engine move IDs stop at473 and ability IDs at123. Provider data can refer to

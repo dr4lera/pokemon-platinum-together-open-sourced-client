@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+namespace CommunityTrainerArt {struct DownloadResult;}
 namespace CommunityOnline {
 enum class State { Stopped, Connecting, Authenticating, Ready, Reconnecting, Stopping, Failed };
 struct Options {
@@ -94,6 +95,11 @@ public:
     bool EnterCity(); // Social plaza presence only; never changes game position.
     bool LeaveCity(); // Also cancels a pending enter; independent of party/link state.
     bool SetCityStatus(const std::string& status);
+    // Only the current authenticated active-link roster member's exact art
+    // reference can be fetched. Zero rejects the request; no URLs/keys are exposed.
+    std::uint64_t RequestTrainerArt(const std::string& player,const ArtReference& art);
+    bool ReceiveTrainerArt(CommunityTrainerArt::DownloadResult& result);
+    bool CancelTrainerArt(std::uint64_t request);
     LinkSnapshot ReadLink() const; // No account keys or single-use tickets.
     bool PrepareLink(const std::string& catalogHash, const std::string& rulesHash);
     bool OpenLink(const std::string& requestId = "");

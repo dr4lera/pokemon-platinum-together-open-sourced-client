@@ -31,6 +31,7 @@ FAIRY_MOVE_PALETTE = (0xDE1B04, 32, "ec786db7408190bda79b5d3a97fbedecdc1c27dbc7a
 STAT_STAGES = (0xE1ABE0, 41 * 12, "6090c97b08f5a1069c483907bf89056fc29f15c22dcf101719505843578fcf62")
 SIDE_EFFECTS = (0xDE6F80, 178 * 4, "f08ccd8d3ae66165b408c0216fecbab4eb4835523bf3c565a643cf5e26996b0b")
 METRONOME_EXCLUSIONS = (0xE1AB80, 34 * 2, "969b61d30433036bc66c709b2aa0a7663739d54739deae081c4ac182afa6fb09")
+FORM_STATS = (0xE1AEA0, 3 * 8, "cccd1a3cd0a3b90a0fb4adc35bf5231e7736548ec4a33a032db2fea1aacc510b")
 MOVE_ARCHIVE_SHA256 = "481cca9e8e3861e267dcef73c7cd6d3a02b69e3a3fc1369411ea93393b05a344"
 
 
@@ -58,7 +59,7 @@ def build_cache(image, move_archive):
     if len(archive.members) != 851 or any(len(record) != 16 for record in archive.members):
         raise ValueError("Move archive record layout mismatch")
     tables.append(b"".join(archive.members[474:848]))
-    for offset, length, digest in (STAT_STAGES, SIDE_EFFECTS, METRONOME_EXCLUSIONS):
+    for offset, length, digest in (STAT_STAGES, SIDE_EFFECTS, METRONOME_EXCLUSIONS, FORM_STATS):
         data = image[offset:offset + length]
         if len(data) != length or hashlib.sha256(data).hexdigest() != digest:
             raise ValueError("Modern battle table differs from its selected version")
@@ -66,8 +67,8 @@ def build_cache(image, move_archive):
             data = data[145 * 4:]
         tables.append(data)
     payload = b"".join(tables)
-    assert len(payload) == 36584
-    return b"PTCAT04\0" + bytes.fromhex(REFERENCE_SHA256) + struct.pack("<II", len(payload), zlib.crc32(payload)) + payload
+    assert len(payload) == 36608
+    return b"PTCAT05\0" + bytes.fromhex(REFERENCE_SHA256) + struct.pack("<II", len(payload), zlib.crc32(payload)) + payload
 
 
 def main():
@@ -89,7 +90,7 @@ def main():
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("xb") as stream:
         stream.write(cache)
-    print("Private V4 cache created: species/graphics data, 374 move metadata records and bounded battle tables.")
+    print("Private V5 cache created: species/graphics data, 374 move metadata records and bounded battle tables.")
     print("Set PLATINUM_COMMUNITY_CATALOG to this file for source-client content development.")
     print("This data provider alone does not establish modern battle/rendering or multiplayer parity.")
 

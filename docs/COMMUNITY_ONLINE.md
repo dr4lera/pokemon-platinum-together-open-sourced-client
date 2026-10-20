@@ -255,3 +255,12 @@ and enter-error/cancel acknowledgement ordering. It copies only a newly
 generated fixture's protected account file to exercise the same-account case;
 no original profiles, saves, assets or public services are involved. UI rendering
 and actual Inverna/world integration remain separate acceptance work.
+
+The [custom trainer content unit](COMMUNITY_TRAINER_ART.md) adds
+`RequestTrainerArt`, `ReceiveTrainerArt` and `CancelTrainerArt` for an exact art
+reference on the active authenticated link roster. A separate bounded worker
+downloads public hash-addressed content from this server, verifies its digest
+and semantic PTTR format, and owns decoded results. Consuming a result rechecks
+the current connection, session, epoch, player and reference. Disconnect only
+signals cancellation and clears results. Rendering and personal art selection
+remain separate integration work.

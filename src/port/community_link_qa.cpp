@@ -69,7 +69,8 @@ extern "C" BOOL CommunityLinkQA_Update(void)
         CommunityOnline::Options options;
         options.serverUrl = Environment("PLATINUM_COMMUNITY_SERVER_URL");
         options.serverKey = Environment("PLATINUM_COMMUNITY_SERVER_KEY");
-        options.profileDirectory = (sDirectory.path / "CommunityOnline" / "QAAccount").u8string();
+        const auto encodedDirectory = (sDirectory.path / "CommunityOnline" / "QAAccount").u8string();
+        options.profileDirectory.assign(reinterpret_cast<const char*>(encodedDirectory.data()), encodedDirectory.size());
         options.username = std::string(sDirectory.role == "host" ? "QAH" : "QAG") + sDirectory.nonce.substr(0, 12);
         options.reconnect = false;
         if (!CommunityWireless::Install() || !online.Connect(std::move(options))) Refuse("could not install/connect the actual community provider");

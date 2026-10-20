@@ -8488,6 +8488,24 @@
         "The Distortion World’s {STRVAR_1 1, 0, 0}\n",
         "appeared!\r"
       ]
-    }
+    },
+    { "id": "BattleStrings_Text_CommunitySchoolForm_Ally", "en_US": ["{STRVAR_1 1, 0, 0} gathered\n", "into a school!"] },
+    { "id": "BattleStrings_Text_CommunitySchoolForm_Wild", "en_US": ["The wild {STRVAR_1 1, 0, 0}\n", "gathered into a school!"] },
+    { "id": "BattleStrings_Text_CommunitySchoolForm_Foe", "en_US": ["The foe’s {STRVAR_1 1, 0, 0}\n", "gathered into a school!"] },
+    { "id": "BattleStrings_Text_CommunitySchoolSolo_Ally", "en_US": ["{STRVAR_1 1, 0, 0} is\n", "swimming alone again!"] },
+    { "id": "BattleStrings_Text_CommunitySchoolSolo_Wild", "en_US": ["The wild {STRVAR_1 1, 0, 0} is\n", "swimming alone again!"] },
+    { "id": "BattleStrings_Text_CommunitySchoolSolo_Foe", "en_US": ["The foe’s {STRVAR_1 1, 0, 0} is\n", "swimming alone again!"] },
+    { "id": "BattleStrings_Text_CommunityStanceAttack", "en_US": "The stance shifted to attack!" },
+    { "id": "BattleStrings_Text_CommunityStanceDefense", "en_US": "The stance shifted to defense!" },
+    { "id": "BattleStrings_Text_CommunityDisguiseHit", "en_US": "The disguise absorbed the hit!" },
+    { "id": "BattleStrings_Text_CommunityDisguiseBroken_Ally", "en_US": ["{STRVAR_1 1, 0, 0}’s disguise\n", "fell apart!"] },
+    { "id": "BattleStrings_Text_CommunityDisguiseBroken_Wild", "en_US": ["The wild {STRVAR_1 1, 0, 0}’s\n", "disguise fell apart!"] },
+    { "id": "BattleStrings_Text_CommunityDisguiseBroken_Foe", "en_US": ["The foe’s {STRVAR_1 1, 0, 0}’s\n", "disguise fell apart!"] },
+    { "id": "BattleStrings_Text_CommunityBondStrength_Ally", "en_US": ["{STRVAR_1 1, 0, 0}’s battle bond\n", "grew stronger!"] },
+    { "id": "BattleStrings_Text_CommunityBondStrength_Wild", "en_US": ["The wild {STRVAR_1 1, 0, 0}’s\n", "battle bond grew stronger!"] },
+    { "id": "BattleStrings_Text_CommunityBondStrength_Foe", "en_US": ["The foe’s {STRVAR_1 1, 0, 0}’s\n", "battle bond grew stronger!"] },
+    { "id": "BattleStrings_Text_CommunityBondForm_Ally", "en_US": ["{STRVAR_1 1, 0, 0} changed through\n", "Battle Bond!"] },
+    { "id": "BattleStrings_Text_CommunityBondForm_Wild", "en_US": ["The wild {STRVAR_1 1, 0, 0} changed\n", "through Battle Bond!"] },
+    { "id": "BattleStrings_Text_CommunityBondForm_Foe", "en_US": ["The foe’s {STRVAR_1 1, 0, 0} changed\n", "through Battle Bond!"] }
   ]
 }

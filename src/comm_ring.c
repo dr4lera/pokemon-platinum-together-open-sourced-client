@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "communication_system.h"
+#include "port/community_comm_diagnostics.h"
 
 static int CommRing_Index(CommRing *ring, int index);
 static int CommRing_RemainingSizeBackup(CommRing *ring);
@@ -22,6 +23,8 @@ void CommRring_Write(CommRing *ring, u8 *buffer, int size, int unused)
     int i;
 
     if (CommRing_RemainingSizeBackup(ring) <= size) {
+        COMMUNITY_COMM_FAULT("ring-overflow", ring, ring->startIndex, ring->endIndex,
+            ring->backupEndIndex, ring->size, size, unused);
         sub_020363BC();
         return;
     }

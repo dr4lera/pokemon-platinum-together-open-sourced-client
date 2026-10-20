@@ -1,17 +1,26 @@
 # Platinum Together community gameplay client
 
-Source-controlled gameplay client migration for the community launcher and private
-servers. This is a separately maintained fork of the public Platinum PC port,
-not the original Platinum Together source. The target is matching 0.1.7 gameplay,
-with the explicitly requested cap, OT and ball-use fixes.
+**Development checkpoint — modernization is incomplete.**
 
-The Windows source executable builds and has reached the new-game introduction
-in an isolated runtime. Native accounts, parties, global chat and signed game
-links are implemented and tested against the real backend. The engine's wireless
-provider passes discovery, joining, MP data and cancellation fixtures. Native
-Union Room battles/trades still need two-game verification; shared-world play,
-Inverna actors, modern-species completion, custom trainer art and full 1:1 parity
-remain under development. Earlier user-confirmed gameplay used reference clients.
+This separately maintained fork of the public Platinum PC port targets the
+installed Together0.1.10 feature set, retaining the0.1.7 behavioral baseline and
+the requested cap, OT and ball-use changes. It is not the original Together source.
+
+The Windows client builds. Fresh native runs verify single-client battles,
+Union Room discovery, colored trainer sprites and authenticated nametags.
+Two-client battle completion, trades and interrupted-save recovery remain open;
+a prior battle receive failure has targeted parser repairs awaiting a completed
+retry. User-confirmed gameplay on the earlier launcher used reference clients.
+
+Modernization currently includes an opt-in65-species data provider, six Fairy
+moves, ten gated ability rules, tested form lifecycles, and persistent modern
+seen/caught flags. The0.1.10 roster contains71 added species; its six additional
+species, the full modern movesets, remaining ability interactions, updated
+options/UI, shared-world/Inverna gameplay and custom avatar rendering are pending.
+Custom trainer art decoding/downloads pass checks; visible per-actor art is pending.
+
+See the [checkpoint record](docs/CHECKPOINT_2026_10_20.md) for tested scope and
+remaining work. This source checkpoint is not a finished gameplay release.
 
 Implemented source rules:
 

@@ -30,11 +30,12 @@ def main():
 #include <stdio.h>
 #include <string.h>
 #include "port/community_catalog.h"
+#include "port/community_form_rules.h"
 #define CommunityCatalog_Runtime CommunityCatalog_DefaultRuntime
 #include "CATALOG_SOURCE"
 #undef CommunityCatalog_Runtime
 typedef uint32_t u32;
-typedef struct SpeciesData { uint8_t base[6], types[2], rest[36]; } SpeciesData;
+typedef struct SpeciesData { uint8_t base[6], types[2], rest[14], abilities[2], tail[20]; } SpeciesData;
 typedef struct SpeciesLearnset { uint16_t entries[21]; } SpeciesLearnset;
 typedef struct NARC { int marker; } NARC;
 enum { NARC_INDEX_POKETOOL__PERSONAL__PL_PERSONAL, NARC_INDEX_POKETOOL__PERSONAL__WOTBL, HEAP_ID_SYSTEM };
@@ -75,6 +76,11 @@ int main(void) {
     }
     SpeciesData_LoadForm(386,1,&personal);
     assert(wholeReads == 1 && lastMember == 496);
+    catalog.personal[541-512][22]=67; catalog.personal[541-512][23]=68;
+    SpeciesData_LoadForm(541,1,&personal);
+    assert(personal.abilities[0]==143 && personal.abilities[1]==0 && wholeReads==1);
+    SpeciesData_LoadForm(541,2,&personal);
+    assert(personal.abilities[0]==67 && personal.abilities[1]==68 && wholeReads==1);
     assert(Pokemon_LoadCommunityLearnsetOf(35,0,&moves) == COMMUNITY_LEARNSET_OK);
     assert(moves.count == 1 && moves.entries[0].move == 3 && moves.entries[0].level == 20);
     assert(opens == 1 && closes == 1);

@@ -92,11 +92,25 @@ jobs:
           if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
           python tests/run_community_controller.py
           if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+          python tests/run_community_link_qa_guard.py --std c++20
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
           python tests/run_community_link_qa_guard.py
           if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
           python tests/run_community_wireless_scan.py
           if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
           python tests/run_community_stat_stages.py
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+          python tests/run_community_comm_parser.py --engine-build build_win64
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+          python tests/run_community_modern_dex.py --engine-build build_win64
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+          python tests/run_community_trainer_art.py
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+          python tests/run_community_union.py
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+          python tests/run_community_forms.py
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+          python tests/run_community_form_scripts.py
           if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
           python tests/run_community_ability_updates.py
           if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
@@ -137,3 +151,10 @@ jobs:
           $env:CXX="$env:PT_BUILD_MSYS2_ROOT/ucrt64/bin/g++.exe"
           ./tests/community_presentation_run.ps1 -BackendRoot "$pwd/.build-tools/community-test-backend" -FixtureDirectory "$env:RUNNER_TEMP/community-presentation-$env:GITHUB_RUN_ID" -Compiler "$env:PT_BUILD_MSYS2_ROOT/ucrt64/bin/g++.exe"
           ./tests/community_link_qa_controller_run.ps1 -BackendRoot "$pwd/.build-tools/community-test-backend" -FixtureDirectory "$env:RUNNER_TEMP/community-qa-controller-$env:GITHUB_RUN_ID" -Compiler "$env:PT_BUILD_MSYS2_ROOT/ucrt64/bin/g++.exe"
+      - name: Check bounded trainer art downloads against disposable backend
+        shell: pwsh
+        env:
+          PT_BUILD_MSYS2_ROOT: ${{ steps.msys2.outputs.msys2-location }}
+        run: |
+          $env:PATH="$env:PT_BUILD_MSYS2_ROOT\ucrt64\bin;$env:PT_BUILD_MSYS2_ROOT\usr\bin;"+$env:PATH
+          ./tests/community_trainer_art_download_run.ps1 -BackendRoot "$pwd/.build-tools/community-test-backend" -FixtureDirectory "$env:RUNNER_TEMP/community-trainer-art-$env:GITHUB_RUN_ID" -Compiler "$env:PT_BUILD_MSYS2_ROOT/ucrt64/bin/g++.exe"

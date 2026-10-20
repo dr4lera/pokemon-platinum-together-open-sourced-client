@@ -35,8 +35,12 @@ jobs:
       - run: python3 subprojects/libntr/tests/community_wm_test.py
       - run: python3 tests/run_community_wireless.py
       - run: python3 tests/run_community_controller.py
+      - run: python3 tests/run_community_link_qa_guard.py --std c++20
       - run: python3 tests/run_community_link_qa_guard.py
       - run: python3 tests/run_community_area_light.py
+      - run: python3 tests/run_community_modern_dex.py
+      - run: python3 tests/run_community_trainer_art.py
+      - run: python3 tests/run_community_comm_parser.py
       - run: python3 tests/run_community_wireless_core.py
       - run: python3 tests/run_community_species_text.py
       - run: python3 tests/run_community_modern_assets.py

@@ -41,6 +41,7 @@ def flags(entry):
 library=(ROOT/'src/battle/battle_lib.c').read_text()
 controller=(ROOT/'src/battle/battle_controller_player.c').read_text()
 io=(ROOT/'src/battle/battle_io_command.c').read_text()
+script=(ROOT/'src/battle/battle_script.c').read_text()
 pieces=[block(library,'static const u8 sSpeedHalvingItemEffects[] = {','\n};'),
         block(library,'typedef struct ItemEffectTypePair','} ItemEffectTypePair;'),
         block(library,'static const ItemEffectTypePair sTypeBoostingItems[] = {','\n};'),
@@ -48,6 +49,9 @@ pieces=[block(library,'static const u8 sSpeedHalvingItemEffects[] = {','\n};'),
         block(library,'static const u16 sPunchingMoves[] = {','\n};'),
         block(library,'typedef struct DamageCalcParams','} DamageCalcParams;')]
 for prefix in ('u8 Battler_Ability(', 'int BattleSystem_CountAbility(', 'BOOL Battler_IgnorableAbility(',
+               'int CommunityForms_BondShuriken(', 'int CommunityForms_AdjustPower(',
+               'int CommunityAbility_BattlerInfiltrates(', 'int CommunityAbility_BattlerBypassesProtect(',
+               'BOOL Move_IsGhostCurse(',
                'static BOOL CommunityAbility_IsBiteMove(', 'static int CommunityAbility_AdjustPower(',
                'int CommunityAbility_AdjustAccuracy(', 'static int CommunityAbility_MovePriority(',
                'static inline int CompareSpeed_ApplySimple(', 'u8 BattleSystem_CompareBattlerSpeed(',
@@ -55,13 +59,20 @@ for prefix in ('u8 Battler_Ability(', 'int BattleSystem_CountAbility(', 'BOOL Ba
     pieces.append(function(library,prefix))
 pieces.extend([function(controller,'static inline int CalcMoveType('),
                function(controller,'static int BattleControllerPlayer_CheckMoveHitAccuracy('),
+               function(controller,'static int BattleControllerPlayer_CheckMoveHitOverrides('),
+               function(controller,'static void BattleControllerPlayer_UpdateHP('),
                function(io,'static void BtlIOCmd_RefreshPartyStatus(')])
+for prefix in ('static int BattleScript_Read(', 'static void BattleScript_Iter(',
+               'static BOOL BtlCmd_CompareVarToValue(', 'static BOOL BtlCmd_CheckSubstitute('):
+    pieces.append(function(script,prefix))
 commands=json.loads((BUILD/'compile_commands.json').read_text())
 scratch=ROOT/'.build-tools'; scratch.mkdir(exist_ok=True)
 with tempfile.TemporaryDirectory(prefix='ability-update-tests-',dir=scratch) as folder:
     temp=Path(folder); (temp/'generated').mkdir()
     run([sys.executable,ROOT/'subprojects/metang/metang.py','enum','--tag-name','Ability',
          '--guard','POKEPLATINUM_GENERATED_ABILITIES_H','--output',temp/'generated/abilities.h',ROOT/'generated/abilities.txt'])
+    run([sys.executable,ROOT/'subprojects/metang/metang.py','enum','--tag-name','BattleSubscript',
+         '--guard','COMMUNITY_TEST_BATTLE_SUBSCRIPTS_H','--output',temp/'generated/battle_subscripts.h',ROOT/'generated/battle_subscripts.txt'])
     (temp/'actual_ability_updates.inc').write_text('\n\n'.join(pieces))
     entry=next(c for c in commands if c['file'].replace('\\','/').endswith('src/battle/battle_lib.c'))
     executable=temp/('ability-updates.exe' if os.name=='nt' else 'ability-updates')

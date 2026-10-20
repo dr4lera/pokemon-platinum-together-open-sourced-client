@@ -2,6 +2,7 @@
 #include "port/community_learnset.h"
 #include "port/community_catalog.h"
 #include "port/community_modern_rules.h"
+#include "port/community_form_rules.h"
 
 #include <nitro.h>
 #include <string.h>
@@ -4840,6 +4841,50 @@ void Pokemon_CalcAbility(Pokemon *mon)
     BoxPokemon_CalcAbility(&mon->box);
 }
 
+void Pokemon_ApplyCommunityEvolutionForm(Pokemon *mon, unsigned targetSpecies)
+{
+    if (CommunityModernRules_Enabled()
+        && CommunityForm_EvolvesWithBond(Pokemon_GetValue(mon, MON_DATA_SPECIES, NULL), targetSpecies,
+            Pokemon_GetValue(mon, MON_DATA_FRIENDSHIP, NULL))) {
+        int form = 1;
+        Pokemon_SetValue(mon, MON_DATA_FORM, &form);
+    }
+}
+
+int Pokemon_CalcCommunityFormStats(Pokemon *mon, unsigned species, unsigned form, uint16_t out[5])
+{
+    static const u8 baseParams[5] = { SPECIES_DATA_BASE_ATK, SPECIES_DATA_BASE_DEF, SPECIES_DATA_BASE_SPEED, SPECIES_DATA_BASE_SP_ATK, SPECIES_DATA_BASE_SP_DEF };
+    static const u8 ivParams[5] = { MON_DATA_ATK_IV, MON_DATA_DEF_IV, MON_DATA_SPEED_IV, MON_DATA_SPATK_IV, MON_DATA_SPDEF_IV };
+    static const u8 evParams[5] = { MON_DATA_ATK_EV, MON_DATA_DEF_EV, MON_DATA_SPEED_EV, MON_DATA_SPATK_EV, MON_DATA_SPDEF_EV };
+    static const u8 natureStats[5] = { STAT_ATTACK, STAT_DEFENSE, STAT_SPEED, STAT_SPECIAL_ATTACK, STAT_SPECIAL_DEFENSE };
+    u8 bases[5];
+    u16 result[5];
+    if (!mon || !out || !CommunityModernRules_Enabled()) {
+        return FALSE;
+    }
+    if (form == 0) {
+        u8 personal[COMMUNITY_PERSONAL_BYTES];
+        if (!CommunityCatalog_Personal(CommunityCatalog_Runtime(), species, personal)) {
+            return FALSE;
+        }
+        for (unsigned i = 0; i < 5; i++) {
+            bases[i] = SpeciesData_GetSpeciesValue(species, baseParams[i]);
+        }
+    } else if (!CommunityCatalog_FormStats(CommunityCatalog_Runtime(), species, form, bases)) {
+        return FALSE;
+    }
+    int level = Pokemon_GetValue(mon, MON_DATA_LEVEL, NULL);
+    u8 nature = Pokemon_GetNature(mon);
+    for (unsigned i = 0; i < 5; i++) {
+        unsigned iv = Pokemon_GetValue(mon, ivParams[i], NULL);
+        unsigned ev = Pokemon_GetValue(mon, evParams[i], NULL);
+        u16 stat = level * (bases[i] * 2 + iv + (ev >> 2)) / 100 + 5;
+        result[i] = Pokemon_GetNatureStatValue(nature, stat, natureStats[i]);
+    }
+    memcpy(out, result, sizeof(result));
+    return TRUE;
+}
+
 static void BoxPokemon_CalcAbility(BoxPokemon *boxMon)
 {
     BOOL reencrypt = BoxPokemon_EnterDecryptionContext(boxMon);
@@ -4907,7 +4952,10 @@ static void SpeciesData_LoadForm(int monSpecies, int monForm, SpeciesData *speci
 {
     monSpecies = Pokemon_GetFormNarcIndex(monSpecies, monForm);
     if (CommunityModernRules_Enabled()
-        && CommunityCatalog_Personal(CommunityCatalog_Runtime(), monSpecies, (uint8_t *)speciesData)) return;
+        && CommunityCatalog_Personal(CommunityCatalog_Runtime(), monSpecies, (uint8_t *)speciesData)) {
+        CommunityForm_BondAbilitySlots(monSpecies, monForm, speciesData->abilities);
+        return;
+    }
     NARC_ReadWholeMemberByIndexPair(speciesData, NARC_INDEX_POKETOOL__PERSONAL__PL_PERSONAL, monSpecies);
     if (CommunityModernRules_Enabled()) CommunityCatalog_Types(CommunityCatalog_Runtime(), monSpecies, speciesData->types);
 }

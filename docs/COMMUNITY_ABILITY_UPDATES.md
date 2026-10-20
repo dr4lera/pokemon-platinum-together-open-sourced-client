@@ -7,7 +7,8 @@ modern catalog and `PLATINUM_COMMUNITY_MODERN_RULES=1`. The default preserves
 the baseline rules. The ability option participates in peer compatibility;
 sharing numeric catalog data does not imply sharing battle rules.
 
-The first implementation covers eight added ability IDs:
+The current implementation covers ten added ability IDs within the admitted
+source battle rules:
 
 | Ability | Implemented rule |
 | --- | --- |
@@ -17,6 +18,8 @@ The first implementation covers eight added ability IDs:
 | Turboblaze, Teravolt | Use the original Mold Breaker bypass paths for redirection, immunity/type checks, ignorable abilities, the defensive Flower Gift boost, and party Heal Bell refresh. |
 | Strong Jaw | Multiplies the reviewed biting-move power by 15/10. |
 | Dark Aura, Fairy Aura | Multiply matching move power by 4/3 once when any living bearer is present. Multiple bearers do not compound the aura. |
+| Infiltrator | Bypasses Reflect/Light Screen in damage calculation, hostile Mist and Substitute stat-drop checks, hostile Substitute script/damage routing, and the specific direct/indirect Safeguard comparison. The underlying shields remain active. |
+| Unseen Fist | Lets contact moves bypass ordinary Protect through the actual move-hit override path. Non-contact, suppression and charge-turn checks retain their existing paths. |
 
 Power changes run before the existing power multiplier and Technician checks.
 This ordering and each integer division matter. Ability suppression uses the
@@ -30,14 +33,24 @@ and trainer AI scoring are still pending. No later-game immunity or interaction
 is inferred from an ability name. No additional modern moves are admitted by
 this update.
 
+Modern terrain-based priority barriers are not admitted by this client yet.
+The Unseen Fist helper accepts an explicit priority-blocked input and refuses a
+bypass when it is set. Its current caller handles ordinary Protect; that future
+terrain result must be wired before admitting those modern barrier rules. This
+unit does not claim their interactions work.
+
 `tests/run_community_ability_updates.py` compiles extracted actual engine callers
 against the real battle structures. It exercises full damage calculation,
 accuracy, turn ordering, effective abilities, living-battler counts, defensive
-bypass and party status refresh using synthetic system/item/party boundaries.
+bypass, party status refresh and barrier routing using synthetic
+system/item/party boundaries.
 Cases include gate-off behavior, suppression, dead/foreign-side bearers,
 non-stacking auras, compounded accuracy rounding, power ordering with Technician,
-and status versus damaging moves. The stat-stage fixture additionally checks
-Big Pecks. Both ability text banks pass the real font encoder, and the four
+and status versus damaging moves. Barrier cases cover preserved side-condition
+data, self-target exceptions, held-item effects, substitute versus real-HP script
+routing, Reflect damage and ordinary Protect. The stat-stage fixture additionally
+checks Big Pecks and Infiltrator against Mist, Substitute and Clear Body.
+Both ability text banks pass the real font encoder, and the four
 changed battle translation units are compiled separately without running ninja.
 
 These are source/fixture checks. Actual-game presentation and the remaining

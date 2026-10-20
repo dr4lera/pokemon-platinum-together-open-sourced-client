@@ -63,6 +63,7 @@ pieces = [function(script, signature) for signature in (
     'static BOOL BtlCmd_CommunityAction(BattleSystem *battleSys, BattleContext *battleCtx)',
 )]
 pieces.append(function(library, 'static int MapSideEffectToSubscript(BattleContext *battleCtx, enum BattleSideEffectType type, u32 effect)'))
+pieces.append(function(library, 'int CommunityAbility_BattlerInfiltrates(BattleContext *battleCtx, int battler)'))
 pieces.append(function(library, 'void BattleContext_Init(BattleContext *battleCtx)'))
 scratch = ROOT / '.build-tools'
 scratch.mkdir(exist_ok=True)
@@ -72,6 +73,9 @@ with tempfile.TemporaryDirectory(prefix='stat-stage-tests-', dir=scratch) as fol
     run([sys.executable, ROOT / 'subprojects/metang/metang.py', 'enum', '--tag-name', 'Ability',
          '--guard', 'POKEPLATINUM_GENERATED_ABILITIES_H', '--output', temp / 'generated/abilities.h',
          ROOT / 'generated/abilities.txt'])
+    run([sys.executable, ROOT / 'subprojects/metang/metang.py', 'enum', '--tag-name', 'BattleSubscript',
+         '--guard', 'COMMUNITY_TEST_BATTLE_SUBSCRIPTS_H', '--output', temp / 'generated/battle_subscripts.h',
+         ROOT / 'generated/battle_subscripts.txt'])
     (temp / 'actual_stat_stage.inc').write_text('\n\n'.join(pieces))
     entry = next(c for c in commands if c['file'].replace('\\', '/').endswith('src/battle/battle_script.c'))
     flags = compile_flags(entry)

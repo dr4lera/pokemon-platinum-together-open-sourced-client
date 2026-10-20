@@ -76,7 +76,8 @@ bool Validate(const std::string& requestedDirectory, const std::string& role, Di
         const auto cwd = std::filesystem::current_path().lexically_normal();
         if (path != cwd || !Plain(path)) throw std::runtime_error("QA directory must equal the plain working directory");
         const std::string prefix = "community-link-qa-", suffix = "-" + role;
-        const auto leaf = path.filename().u8string();
+        const auto encodedLeaf = path.filename().u8string();
+        const std::string leaf(reinterpret_cast<const char*>(encodedLeaf.data()), encodedLeaf.size());
         if (leaf.size() != prefix.size() + 32 + suffix.size() || leaf.compare(0, prefix.size(), prefix)
             || leaf.compare(leaf.size() - suffix.size(), suffix.size(), suffix)) throw std::runtime_error("invalid disposable directory name");
         const auto nonce = leaf.substr(prefix.size(), 32);

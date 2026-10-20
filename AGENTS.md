@@ -13,7 +13,8 @@ runtime assets, saves, account keys, or private research.
 Keep permission correspondence private and outside this checkout. Do not put its
 text in source files, history, issues, releases, documentation or support tickets.
 
-The reconstruction target is installed Platinum Together 0.1.7 behavior, with
+The modernization target is installed Platinum Together0.1.10. Retain the
+pinned0.1.7 behavioral baseline while adapting verified update changes, with
 the user's explicit deviations: world level caps apply regardless of original
 trainer; foreign OT does not add obedience restrictions; ordinary Poké Balls
 target only wild Pokémon and require exactly one remaining opponent; every
@@ -28,3 +29,8 @@ compatibility changes; do not silently combine data from different versions.
 Record implemented, code-inspected, built, and in-game-verified scope separately
 in docs/MIGRATION_STATUS.md. Never advertise full 1:1 parity before its acceptance
 matrix passes. Preserve original saves; development uses separate local profiles.
+
+Current work is frozen at the user's2026-10-20 checkpoint request. See
+`docs/CHECKPOINT_2026_10_20.md` before resuming; modernization and completed
+native multiplayer acceptance remain unfinished. Do not describe this checkpoint
+as a finished gameplay release.

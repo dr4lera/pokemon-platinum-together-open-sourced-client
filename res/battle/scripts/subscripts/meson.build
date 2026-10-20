@@ -298,4 +298,12 @@ subscript_files = files(
     'subscript_overworld_sun.s',
     'subscript_overworld_trick_room.s',
     'subscript_giratina_form_change.s',
+    'subscript_community_reserved.s',
+    'subscript_community_form_change.s',
+    'subscript_community_school_form.s',
+    'subscript_community_school_solo.s',
+    'subscript_community_stance_attack.s',
+    'subscript_community_stance_defense.s',
+    'subscript_community_disguise_break.s',
+    'subscript_community_battle_bond.s',
 )

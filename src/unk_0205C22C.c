@@ -38,6 +38,9 @@
 #include "unk_020655F4.h"
 
 #include "constdata/const_020ED570.h"
+#if defined(PLATINUM_COMMUNITY_CLIENT) && defined(SDK_BUILD_WIN64)
+#include "port/community_union_presentation.h"
+#endif
 
 static void sub_0205C304(SysTask *param0, void *param1);
 static void sub_0205C44C(UnkStruct_0205C22C *param0, UnkStruct_0205B43C *param1, MapObjectManager *param2, PalPad *param3);
@@ -102,6 +105,9 @@ void sub_0205C2C8(UnkStruct_0205C22C *param0)
 
 void sub_0205C2E0(UnkStruct_0205C22C *param0)
 {
+#if defined(PLATINUM_COMMUNITY_CLIENT) && defined(SDK_BUILD_WIN64)
+    CommunityUnion_LabelsEnd(param0->fieldSystem);
+#endif
     SysTask_Done(param0->unk_04);
     sub_0205C970(param0->unk_478);
     Heap_Destroy(HEAP_ID_89);
@@ -115,8 +121,14 @@ static void sub_0205C304(SysTask *task, void *param1)
 
     if (!FieldSystem_IsRunningTask(v0->fieldSystem)) {
         v0->playerAvatar = v0->fieldSystem->playerAvatar;
+#if defined(PLATINUM_COMMUNITY_CLIENT) && defined(SDK_BUILD_WIN64)
+        CommunityUnion_LabelsBegin(v0->fieldSystem);
+#endif
         sub_0205C44C(v0, v1, v0->fieldSystem->mapObjMan, v0->unk_474);
         sub_0205C51C(v0, v0->fieldSystem->mapObjMan);
+#if defined(PLATINUM_COMMUNITY_CLIENT) && defined(SDK_BUILD_WIN64)
+        CommunityUnion_LabelsFinish();
+#endif
     }
 }
 
@@ -155,7 +167,11 @@ static int sub_0205C340(UnkStruct_0205C22C *param0, int param1, WMBssDesc *param
         case 0:
             if (v4->unk_18[v0] != 0) {
                 param0->unk_0C[v1].unk_00 = 2;
+#if defined(PLATINUM_COMMUNITY_CLIENT) && defined(SDK_BUILD_WIN64)
+                param0->unk_0C[v1].unk_08 = CommunityUnion_SafeAppearance(v4->unk_18[v0] >> 7, v4->unk_18[v0] & 0x7f);
+#else
                 param0->unk_0C[v1].unk_08 = (v4->unk_18[v0] & 0x7f);
+#endif
                 param0->unk_0C[v1].unk_02 = PalPad_TrainerIsFriend(param3, v4->unk_00[v0]);
                 v2 = 1;
             }
@@ -197,10 +213,26 @@ static void sub_0205C44C(UnkStruct_0205C22C *param0, UnkStruct_0205B43C *param1,
 
     for (v1 = 0; v1 < 10; v1++) {
         v0 = sub_0205B774(param1, v1);
+#if defined(PLATINUM_COMMUNITY_CLIENT) && defined(SDK_BUILD_WIN64)
+        if (v0 && (v0->gameInfo.userGameInfoLength < sizeof(UnkStruct_0203330C) || !CommunityUnion_BeaconAllowed(v0->bssid))) v0 = NULL;
+#endif
 
         if (v0 != NULL) {
             v2 = (UnkStruct_0203330C *)v0->gameInfo.userGameInfo;
             v3 = (TrainerInfo *)v2->unk_10;
+#if defined(PLATINUM_COMMUNITY_CLIENT) && defined(SDK_BUILD_WIN64)
+            CommunityUnion_LabelsBind(param0->fieldSystem, v1 + 1, MapObjMan_LocalMapObjByIndex(param2, v1 + 1), v0->bssid);
+            if (param0->unk_0C[v1].unk_01 == 2) {
+                unsigned appearance = CommunityUnion_SafeAppearance(TrainerInfo_Gender(v3), TrainerInfo_Appearance(v3));
+                if (param0->unk_0C[v1].unk_08 != appearance) {
+                    MapObject *object = MapObjMan_LocalMapObjByIndex(param2, v1 + 1);
+                    if (object && LocalMapObj_IsAnimationSet(object)) {
+                        param0->unk_0C[v1].unk_08 = appearance;
+                        sub_02061AD4(object, appearance);
+                    }
+                }
+            }
+#endif
         } else {
             v2 = NULL;
             v3 = NULL;
@@ -209,7 +241,11 @@ static void sub_0205C44C(UnkStruct_0205C22C *param0, UnkStruct_0205B43C *param1,
         switch (param0->unk_0C[v1].unk_01) {
         case 0:
             if (v0 != NULL) {
+#if defined(PLATINUM_COMMUNITY_CLIENT) && defined(SDK_BUILD_WIN64)
+                param0->unk_0C[v1].unk_08 = CommunityUnion_SafeAppearance(TrainerInfo_Gender(v3), TrainerInfo_Appearance(v3));
+#else
                 param0->unk_0C[v1].unk_08 = TrainerInfo_Appearance(v3);
+#endif
                 param0->unk_0C[v1].unk_02 = PalPad_TrainerIsFriend(param3, TrainerInfo_ID(v3));
                 param0->unk_0C[v1].unk_0C = v2->unk_00;
 

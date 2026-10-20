@@ -22,7 +22,7 @@ typedef int BOOL;
 '@ | Set-Content -LiteralPath (Join-Path $stubs 'nitro/types.h') -Encoding utf8NoBOM
 '#include <nitro/types.h>' | Set-Content -LiteralPath (Join-Path $stubs 'nitro.h') -Encoding utf8NoBOM
 $executable=Join-Path $scratch 'community-link-qa-controller.exe'
-& $Compiler '-std=c++17' '-Wall' '-Wextra' '-Werror' ('-I'+$stubs) ('-I'+(Join-Path $root 'include')) ('-I'+(Join-Path $root 'subprojects/rapidjson-1.1.0/include')) (Join-Path $root 'src/port/community_online.cpp') (Join-Path $root 'src/port/community_link_qa_guard.cpp') (Join-Path $root 'tests/community_link_qa_controller_test.cpp') '-o' $executable '-lcurl' '-lcrypto' '-lcrypt32' '-pthread'
+& $Compiler '-std=c++17' '-Wall' '-Wextra' '-Werror' ('-I'+$stubs) ('-I'+(Join-Path $root 'include')) ('-I'+(Join-Path $root 'subprojects/rapidjson-1.1.0/include')) (Join-Path $root 'src/port/community_online.cpp') (Join-Path $root 'src/port/community_trainer_art.cpp') (Join-Path $root 'src/port/community_trainer_art_download.cpp') (Join-Path $root 'src/port/community_link_qa_guard.cpp') (Join-Path $root 'tests/community_link_qa_controller_test.cpp') '-o' $executable '-lcurl' '-lcrypto' '-lcrypt32' '-pthread'
 if($LASTEXITCODE -ne 0){throw 'Actual QA controller fixture compilation failed.'}
 $previousPath=$env:PATH
 try{

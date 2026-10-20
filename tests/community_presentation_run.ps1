@@ -12,10 +12,10 @@ if($LASTEXITCODE -ne 0 -or $version -notmatch '^v(\d+)\.' -or [int]$Matches[1] -
 $scratch=Join-Path $root '.build-tools'
 New-Item -ItemType Directory -Path $scratch -Force|Out-Null
 $executable=Join-Path $scratch 'community-presentation-test.exe'
-& $Compiler '-std=c++17' '-Wall' '-Wextra' '-Werror' ('-I'+(Join-Path $root 'include')) ('-I'+(Join-Path $root 'subprojects/rapidjson-1.1.0/include')) (Join-Path $root 'src/port/community_online.cpp') (Join-Path $root 'tests/community_presentation_test.cpp') '-o' $executable '-lcurl' '-lcrypto' '-lcrypt32' '-pthread'
+& $Compiler '-std=c++17' '-Wall' '-Wextra' '-Werror' ('-I'+(Join-Path $root 'include')) ('-I'+(Join-Path $root 'subprojects/rapidjson-1.1.0/include')) (Join-Path $root 'src/port/community_online.cpp') (Join-Path $root 'src/port/community_trainer_art.cpp') (Join-Path $root 'src/port/community_trainer_art_download.cpp') (Join-Path $root 'tests/community_presentation_test.cpp') '-o' $executable '-lcurl' '-lcrypto' '-lcrypt32' '-pthread'
 if($LASTEXITCODE -ne 0){throw 'Native presentation test compilation failed.'}
 $shutdownExecutable=Join-Path $scratch 'community-presentation-shutdown-test.exe'
-& $Compiler '-std=c++17' '-Wall' '-Wextra' '-Werror' ('-I'+(Join-Path $root 'include')) ('-I'+(Join-Path $root 'subprojects/rapidjson-1.1.0/include')) (Join-Path $root 'tests/community_presentation_shutdown_test.cpp') '-o' $shutdownExecutable '-lcurl' '-lcrypto' '-lcrypt32' '-pthread'
+& $Compiler '-std=c++17' '-Wall' '-Wextra' '-Werror' ('-I'+(Join-Path $root 'include')) ('-I'+(Join-Path $root 'subprojects/rapidjson-1.1.0/include')) (Join-Path $root 'tests/community_presentation_shutdown_test.cpp') (Join-Path $root 'src/port/community_trainer_art.cpp') (Join-Path $root 'src/port/community_trainer_art_download.cpp') '-o' $shutdownExecutable '-lcurl' '-lcrypto' '-lcrypt32' '-pthread'
 if($LASTEXITCODE -ne 0){throw 'Native presentation shutdown test compilation failed.'}
 $previousPath=$env:PATH
 try {

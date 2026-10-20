@@ -31,6 +31,8 @@
 #include "battle/capture_rules.h"
 #include "battle/common.h"
 #include "battle/community_ability_rules.h"
+#include "battle/community_barrier_rules.h"
+#include "battle/community_forms.h"
 #include "battle/message_defs.h"
 
 #include "bag.h"
@@ -1864,6 +1866,14 @@ static void BattleControllerPlayer_TurnEnd(BattleSystem *battleSys, BattleContex
         return;
     }
 
+    int formScript = CommunityForms_CheckSchooling(battleSys, battleCtx, FALSE);
+    if (formScript) {
+        LOAD_SUBSEQ(formScript);
+        battleCtx->commandNext = battleCtx->command;
+        battleCtx->command = BATTLE_CONTROL_EXEC_SCRIPT;
+        return;
+    }
+
     battleCtx->totalTurns++;
     battleCtx->meFirstTurnOrder++;
 
@@ -3031,6 +3041,9 @@ static int BattleControllerPlayer_CheckMoveHitOverrides(BattleSystem *battleSys,
     }
 
     if (battleCtx->turnFlags[defender].protecting
+        /* Only ordinary Protect exists in the admitted source rules. Future
+         * modern priority barriers must supply their separate blocked result. */
+        && !CommunityAbility_BattlerBypassesProtect(battleCtx, attacker, move, FALSE)
         && (MOVE_DATA(move).flags & MOVE_FLAG_CAN_PROTECT)
         && (move != MOVE_CURSE || Move_IsGhostCurse(battleCtx, move, attacker) == TRUE) // Ghost-Curse can be Protected
         && (Move_IsMultiTurn(battleCtx, move) == FALSE || (battleCtx->battleStatusMask & SYSCTL_LAST_OF_MULTI_TURN))) {
@@ -3174,6 +3187,16 @@ static void BattleControllerPlayer_BeforeMove(BattleSystem *battleSys, BattleCon
             return;
         }
         battleCtx->beforeMoveCheckState++;
+
+        if ((battleCtx->multiHitCheckFlags & SYSCTL_SKIP_STATUS_CHECK) == FALSE) {
+            int formScript = CommunityForms_BeforeMove(battleSys, battleCtx);
+            if (formScript) {
+                LOAD_SUBSEQ(formScript);
+                battleCtx->commandNext = BATTLE_CONTROL_BEFORE_MOVE;
+                battleCtx->command = BATTLE_CONTROL_EXEC_SCRIPT;
+                return;
+            }
+        }
 
     case BEFORE_MOVE_STATE_CHECK_OBEDIENCE:
         int result;
@@ -3382,7 +3405,9 @@ static void BattleControllerPlayer_UpdateHP(BattleSystem *battleSys, BattleConte
 
         battleCtx->lastHitByBattler[battleCtx->defender] = battleCtx->attacker;
 
-        if ((DEFENDING_MON.statusVolatile & VOLATILE_CONDITION_SUBSTITUTE) && battleCtx->damage < 0) {
+        if ((DEFENDING_MON.statusVolatile & VOLATILE_CONDITION_SUBSTITUTE) && battleCtx->damage < 0
+            && (battleCtx->attacker == battleCtx->defender
+                || !CommunityAbility_BattlerInfiltrates(battleCtx, battleCtx->attacker))) {
             if (DEFENDING_MON.moveEffectsData.substituteHP + battleCtx->damage <= 0) {
                 ATTACKER_SELF_TURN_FLAGS.shellBellDamageDealt += DEFENDING_MON.moveEffectsData.substituteHP * -1;
                 DEFENDING_MON.statusVolatile &= ~VOLATILE_CONDITION_SUBSTITUTE;
@@ -3401,6 +3426,16 @@ static void BattleControllerPlayer_UpdateHP(BattleSystem *battleSys, BattleConte
             battleCtx->command = BATTLE_CONTROL_EXEC_SCRIPT;
             battleCtx->commandNext = BATTLE_CONTROL_AFTER_MOVE_MESSAGE;
 
+            return;
+        }
+
+        int formScript = CommunityForms_InterceptDamage(battleSys, battleCtx);
+        if (formScript) {
+            battleCtx->hitDamage = 0;
+            LOAD_SUBSEQ(formScript);
+            battleCtx->command = BATTLE_CONTROL_EXEC_SCRIPT;
+            battleCtx->commandNext = BATTLE_CONTROL_AFTER_MOVE_MESSAGE;
+            battleCtx->battleStatusMask |= SYSCTL_MOVE_HIT;
             return;
         }
 
@@ -3452,6 +3487,7 @@ static void BattleControllerPlayer_UpdateHP(BattleSystem *battleSys, BattleConte
 
         if (DEFENDING_MON.curHP + battleCtx->damage <= 0) {
             ATTACKER_SELF_TURN_FLAGS.shellBellDamageDealt += DEFENDING_MON.curHP * -1;
+            CommunityForms_MarkKnockout(battleSys, battleCtx);
         } else {
             ATTACKER_SELF_TURN_FLAGS.shellBellDamageDealt += battleCtx->damage;
         }
@@ -3996,7 +4032,15 @@ static void BattleControllerPlayer_MoveEnd(BattleSystem *battleSys, BattleContex
             return;
         }
 
-        int nextSeq = BattleSystem_TriggerEffectOnSwitch(battleSys, battleCtx);
+        int nextSeq = CommunityForms_AfterMove(battleSys, battleCtx);
+        if (nextSeq) {
+            LOAD_SUBSEQ(nextSeq);
+            battleCtx->commandNext = battleCtx->command;
+            battleCtx->command = BATTLE_CONTROL_EXEC_SCRIPT;
+            return;
+        }
+
+        nextSeq = BattleSystem_TriggerEffectOnSwitch(battleSys, battleCtx);
         if (nextSeq) {
             LOAD_SUBSEQ(nextSeq);
             battleCtx->commandNext = battleCtx->command;

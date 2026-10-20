@@ -26,6 +26,34 @@
 #include "unk_02033200.h"
 #include "unk_020363E8.h"
 #include "wireless_manager.h"
+#include "port/community_comm_diagnostics.h"
+
+#ifdef SDK_PORT
+#include <stdatomic.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+void CommunityCommDiagnostics_Record(const char *reason, const void *site,
+    int a, int b, int c, int d, int e, int f)
+{
+    static atomic_int state; /* 0: unread, 1: reading, 2: off, 3: on. */
+    static atomic_int recorded;
+    int expected = 0;
+    if (atomic_compare_exchange_strong(&state, &expected, 1)) {
+        const char *value = getenv("PLATINUM_COMMUNITY_DIAGNOSTICS");
+        atomic_store(&state, value != NULL && strcmp(value, "1") == 0 ? 3 : 2);
+    }
+    int enabled;
+    while ((enabled = atomic_load(&state)) == 1) {
+    }
+    if (enabled != 3 || atomic_exchange(&recorded, 1)) {
+        return;
+    }
+    fprintf(stderr, "[community-comm-first-fault] reason=%s site=%p counters=%d,%d,%d,%d,%d,%d\n",
+        reason, site, a, b, c, d, e, f);
+    fflush(stderr);
+}
+#endif
 
 enum TransmissionType {
     TRANSMISSION_TYPE_SERVER_CLIENT,
@@ -1376,6 +1404,7 @@ BOOL CommSys_SendDataHugeServer(int cmd, const void *data, int size)
 BOOL CommSys_SendDataServer(int cmd, const void *data, int size)
 {
     if (CommSys_CurNetId() != 0) {
+        COMMUNITY_COMM_FAULT("wrong-server-send", NULL, cmd, size, CommSys_CurNetId(), CommManager_GetCommType(), 0, 0);
         sub_020363BC();
 
         return FALSE;
@@ -1452,7 +1481,7 @@ static void CommSys_RecvDataSingle(CommRing *ring, int netId, u8 *buffer, CommRe
             }
 
             if (size == PACKET_SIZE_VARIABLE) {
-                if (CommRing_DataSize(ring) < 1) {
+                if (CommRing_DataSize(ring) < 2) {
                     ring->startIndex = v2;
                     break;
                 }
@@ -1945,6 +1974,12 @@ BOOL sub_020363A0(void)
 
 void sub_020363BC(void)
 {
+    /* Specific callers record their counters first; this covers other paths. */
+#if defined(SDK_PORT) && defined(__GNUC__)
+    COMMUNITY_COMM_FAULT("native-error", __builtin_return_address(0),
+        CommManager_GetCommType(), sCommunicationSystem->transmissionType,
+        sCommunicationSystem->shuttingDown, sCommunicationSystem->unk_6B1, 0, 0);
+#endif
     sCommunicationSystem->unk_6B1 = 1;
 }
 

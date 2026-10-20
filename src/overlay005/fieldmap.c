@@ -79,6 +79,9 @@
 #include "unk_0202419C.h"
 #include "unk_020559DC.h"
 #include "vram_transfer.h"
+#if defined(PLATINUM_COMMUNITY_CLIENT) && defined(SDK_BUILD_WIN64)
+#include "port/community_union_presentation.h"
+#endif
 
 #define FIELD_MAP_INIT_STATE_RESET         0
 #define FIELD_MAP_INIT_STATE_LOAD          1
@@ -270,6 +273,9 @@ static BOOL FieldMap_Exit(ApplicationManager *appMan, int *param1)
 
     switch (*param1) {
     case 0:
+#if defined(PLATINUM_COMMUNITY_CLIENT) && defined(SDK_BUILD_WIN64)
+        CommunityUnion_LabelsEnd(fieldSystem);
+#endif
         DynamicMapFeatures_Free(fieldSystem);
         LandDataManager_ForgetTrackedTarget(fieldSystem->landDataMan);
 
@@ -711,6 +717,9 @@ static void ov5_021D15F4(FieldSystem *fieldSystem)
 
     FieldEffectManager_Render(fieldSystem->fieldEffMan);
     BillboardLists_Draw();
+#if defined(PLATINUM_COMMUNITY_CLIENT) && defined(SDK_BUILD_WIN64)
+    CommunityUnion_LabelsRender(fieldSystem);
+#endif
 
     if (FieldMap_InDistortionWorld(fieldSystem) == TRUE) {
         DistWorld_ApplyGiratinaSpritePalette(fieldSystem);

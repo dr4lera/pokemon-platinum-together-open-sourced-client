@@ -14,6 +14,7 @@
 #include "communication_system.h"
 #include "heap.h"
 #include "unk_020363E8.h"
+#include "port/community_comm_diagnostics.h"
 
 typedef struct {
     const CommCmdTable *cmdTable;
@@ -91,7 +92,8 @@ void CommCmd_Callback(int param0, int cmd, int param2, void *param3)
     } else {
         GF_ASSERT(sCommCmdManager);
 
-        if (cmd > (sCommCmdManager->unk_04 + 22)) {
+        if (cmd >= (sCommCmdManager->unk_04 + 22)) {
+            COMMUNITY_COMM_FAULT("invalid-command-callback", NULL, cmd, sCommCmdManager->unk_04, param0, param2, 0, 0);
             sub_020363BC();
             return;
         }
@@ -119,11 +121,13 @@ int CommCmd_PacketSizeOf(int cmd)
         GF_ASSERT(sCommCmdManager);
 
         if (sCommCmdManager == NULL) {
+            COMMUNITY_COMM_FAULT("missing-command-table", NULL, cmd, 0, 0, 0, 0, 0);
             sub_020363BC();
             return v0;
         }
 
-        if (cmd > (sCommCmdManager->unk_04 + 22)) {
+        if (cmd >= (sCommCmdManager->unk_04 + 22)) {
+            COMMUNITY_COMM_FAULT("invalid-command-size", NULL, cmd, sCommCmdManager->unk_04, 0, 0, 0, 0);
             GF_ASSERT(FALSE);
             sub_020363BC();
             return v0;

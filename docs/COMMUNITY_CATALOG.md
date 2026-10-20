@@ -1,6 +1,6 @@
 # Local content catalog
 
-The original community data provider reads a bounded 36,632-byte `PTCAT04`
+The original community data provider reads a bounded 36,656-byte `PTCAT05`
 runtime cache. Generate it from a user-supplied, hash-pinned 0.1.7 executable and explicit patched move archive:
 
 ```powershell
@@ -13,9 +13,9 @@ artifact/version, changed table hashes and an existing output file. It reads
 the executable as data and never executes or patches it. No original data is
 included in this repository or its CI fixtures.
 
-V4 deliberately rejects V1/V2/V3 caches; regenerate the private file with the current
+V5 deliberately rejects V1/V2/V3 caches; regenerate the private file with the current
 importer. The 48-byte header carries the selected artifact hash, exact payload
-length and CRC. The 36,584-byte payload retains the five original arrays, then
+length and CRC. The 36,608-byte payload retains the five original arrays, then
 stores 65 numeric metadata records (three little-endian u16 fields: national
 number, height and weight), 65 seven-slot evolution records (42 bytes each),
 65 sprite-animation records (89 bytes each), 65 two-face height records,
@@ -75,7 +75,7 @@ priority, friendship159/160, Everstone, item evolution, all seven legacy slots,
 disabled gating and all65 modern evolution archive bypasses. These checks do not
 establish that the resulting modern species is safe to create/save or render.
 
-V4 appends374 sixteen-byte move metadata records (IDs474..847),41 twelve-byte
+V5 appends374 sixteen-byte move metadata records (IDs474..847),41 twelve-byte
 stat-stage records,33 new side-effect script routes and34 Metronome exclusions.
 The archive and compiled tables are independently hash-pinned; reserved archive
 rows848..850 are excluded. The runtime parser validates effect/class/type,
@@ -85,3 +85,9 @@ unchanged when refusing invalid inputs. Wireless compatibility includes every
 new array. These providers do not expand `MAX_MOVES`, load new scripts or enable
 unreviewed moves. Native move-specific state, damage and lifecycle hooks remain
 separate work; reusing an old effect script alone does not establish parity.
+
+V5 appends three8-byte numeric form-stat records (species/form and five non-HP
+base stats). Exact keys must have existing graphics mappings; zero forms/stats,
+duplicates and missing mappings are refused. The accessor changes its five-byte
+output only on an exact valid match. V1–V4 caches are rejected. This metadata
+does not by itself enable a battle form or its lifecycle.

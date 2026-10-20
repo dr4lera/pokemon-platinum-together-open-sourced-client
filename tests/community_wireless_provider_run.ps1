@@ -16,7 +16,7 @@ if(!$BuildDirectory){$BuildDirectory=Join-Path $root 'build_win64'}
 $nativeFlags=(& python (Join-Path $PSScriptRoot 'native_build_flags.py') $BuildDirectory 'src/port/community_wireless.cpp') | ConvertFrom-Json
 if($LASTEXITCODE -ne 0){throw 'An existing native build is required for the actual SDK ABI fixture.'}
 $executable=Join-Path $scratch 'community-wireless-provider-test.exe'
-& $Compiler '-std=c++17' '-Wall' '-Wextra' '-Werror' @nativeFlags (Join-Path $root 'src/port/community_online.cpp') (Join-Path $root 'src/port/community_wireless_core.cpp') (Join-Path $root 'tests/community_wireless_provider_test.cpp') '-o' $executable '-lcurl' '-lcrypto' '-lcrypt32' '-pthread'
+& $Compiler '-std=c++17' '-Wall' '-Wextra' '-Werror' @nativeFlags (Join-Path $root 'src/port/community_online.cpp') (Join-Path $root 'src/port/community_trainer_art.cpp') (Join-Path $root 'src/port/community_trainer_art_download.cpp') (Join-Path $root 'src/port/community_wireless_core.cpp') (Join-Path $root 'tests/community_wireless_provider_test.cpp') '-o' $executable '-lcurl' '-lcrypto' '-lcrypt32' '-pthread'
 if($LASTEXITCODE -ne 0){throw 'Actual provider fixture compilation failed.'}
 $previousPath=$env:PATH
 try {

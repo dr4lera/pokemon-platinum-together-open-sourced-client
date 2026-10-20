@@ -7,19 +7,31 @@
 #include "battle/battle_system.h"
 #include "battle/common.h"
 #include "battle/community_ability_rules.h"
+#include "battle/community_barrier_rules.h"
+#include "port/community_form_rules.h"
 #include "battle/message_defs.h"
 #include "constants/battle/battle_script.h"
+#include "constants/battle/battle_controller.h"
 #include "constants/items.h"
 #include "constants/species.h"
+#include "generated/game_records.h"
 #include "struct_defs/battler_data.h"
 #include "struct_defs/fraction.h"
 #include "data/hit_rate_stages.h"
+#include "res/battle/scripts/sub_seq.naix"
 #undef main
 #undef GF_ASSERT
 #define GF_ASSERT(value) assert(value)
 
 struct BattleSystem { int battlers; u32 type; u16 random; };
 static int modern, updates;
+static int loadedScript = -1, unlocks;
+/* This ability fixture isolates form routing; actual forms are covered by
+ * run_community_forms.py with the real damage consumer. */
+int CommunityForms_InterceptDamage(BattleSystem *system, BattleContext *context)
+{ (void)system; (void)context; return 0; }
+void CommunityForms_MarkKnockout(BattleSystem *system, BattleContext *context)
+{ (void)system; (void)context; }
 int CommunityModernRules_Enabled(void) { return modern; }
 int CommunityAbilityUpdates_Enabled(void) { return modern && updates; }
 int BattleSystem_GetMaxBattlers(BattleSystem *system) { return system->battlers; }
@@ -27,6 +39,13 @@ u8 BattleSystem_GetBattlerSide(BattleSystem *system, int battler) { (void)system
 u32 BattleSystem_GetBattleType(BattleSystem *system) { return system->type; }
 u16 BattleSystem_RandNext(BattleSystem *system) { return system->random; }
 static u32 FlagIndex(int index) { return 1U << index; }
+void BattleSystem_LoadScript(BattleContext *context, enum NarcID narc, int file)
+{ (void)context; (void)narc; loadedScript=file; }
+void BattleController_EmitIncrementRecord(BattleSystem *system, int battler, int type, int record)
+{ (void)system; (void)battler; (void)type; (void)record; }
+void Battler_UnlockMoveChoice(BattleSystem *system, BattleContext *context, int battler)
+{ (void)system; (void)context; (void)battler; unlocks++; }
+BOOL Move_IsMultiTurn(BattleContext *context, int move) { (void)context; (void)move; return FALSE; }
 s32 Battler_HeldItemEffect(BattleContext *context, int battler) { (void)context; (void)battler; return 0; }
 s32 Battler_HeldItemPower(BattleContext *context, int battler, enum HeldItemPowerOp op)
 { (void)context; (void)battler; (void)op; return 0; }
@@ -78,6 +97,18 @@ void Pokemon_SetValue(Pokemon *mon, enum PokemonDataParam param, const void *val
 void BattleController_EmitClearCommand(BattleSystem *system, int battler, int command)
 { (void)system; (void)battler; (void)command; }
 static void ZeroDataBuffer(BattlerData *data) { memset(data->data,0,sizeof(data->data)); }
+static int *BattleScript_VarAddress(BattleSystem *system, BattleContext *context, int variable)
+{
+    (void)system;
+    if (variable==BTLVAR_SIDE_CONDITIONS_EFFECT_MON) return (int*)&context->sideConditionsMask[context->sideEffectMon&1];
+    if (variable==BTLVAR_SIDE_CONDITIONS_DEFENDER) return (int*)&context->sideConditionsMask[context->defender&1];
+    assert(0); return NULL;
+}
+static int BattleScript_Battler(BattleSystem *system, BattleContext *context, int selector)
+{
+    (void)system;
+    return selector==BTLSCR_ATTACKER ? context->attacker : context->sideEffectMon;
+}
 #include "actual_ability_updates.inc"
 
 static void prepare(BattleContext *context)
@@ -101,6 +132,88 @@ static void prepare(BattleContext *context)
 }
 static int damage(BattleSystem *system, BattleContext *context, unsigned power)
 { return BattleSystem_CalcMoveDamage(system,context,MOVE_BITE,0,0,power,TYPE_DARK,0,1,1); }
+static void safeguardComparison(BattleSystem *system, BattleContext *context, int variable, int compare)
+{
+    context->scriptCursor=0; context->battleScript[0]=0;
+    context->battleScript[1]=OPCODE_FLAG_SET; context->battleScript[2]=variable;
+    context->battleScript[3]=compare; context->battleScript[4]=4;
+    BtlCmd_CompareVarToValue(system,context);
+}
+static void barrierCases(BattleSystem *system, BattleContext *context)
+{
+    prepare(context); context->attacker=0; context->defender=context->sideEffectMon=1;
+    context->battleMons[0].ability=ABILITY_INFILTRATOR;
+    context->sideConditionsMask[1]=SIDE_CONDITION_SAFEGUARD|SIDE_CONDITION_REFLECT;
+    context->sideEffectType=SIDE_EFFECT_TYPE_DIRECT;
+    safeguardComparison(system,context,BTLVAR_SIDE_CONDITIONS_EFFECT_MON,SIDE_CONDITION_SAFEGUARD);
+    assert(context->scriptCursor==9);
+    updates=1;
+    safeguardComparison(system,context,BTLVAR_SIDE_CONDITIONS_EFFECT_MON,SIDE_CONDITION_SAFEGUARD);
+    assert(context->scriptCursor==5);
+    assert(context->sideConditionsMask[1]==(SIDE_CONDITION_SAFEGUARD|SIDE_CONDITION_REFLECT));
+    safeguardComparison(system,context,BTLVAR_SIDE_CONDITIONS_DEFENDER,SIDE_CONDITION_SAFEGUARD);
+    assert(context->scriptCursor==9);
+    context->sideEffectType=SIDE_EFFECT_TYPE_HELD_ITEM;
+    safeguardComparison(system,context,BTLVAR_SIDE_CONDITIONS_EFFECT_MON,SIDE_CONDITION_SAFEGUARD);
+    assert(context->scriptCursor==9);
+    context->sideEffectType=SIDE_EFFECT_TYPE_INDIRECT;
+    context->sideEffectMon=context->attacker; context->sideConditionsMask[0]=SIDE_CONDITION_SAFEGUARD;
+    safeguardComparison(system,context,BTLVAR_SIDE_CONDITIONS_EFFECT_MON,SIDE_CONDITION_SAFEGUARD);
+    assert(context->scriptCursor==9);
+
+    context->sideEffectMon=1; context->battleMons[1].statusVolatile=VOLATILE_CONDITION_SUBSTITUTE;
+    context->scriptCursor=0; context->battleScript[1]=BTLSCR_SIDE_EFFECT_MON; context->battleScript[2]=4;
+    BtlCmd_CheckSubstitute(system,context); assert(context->scriptCursor==3);
+    updates=0; context->scriptCursor=0; BtlCmd_CheckSubstitute(system,context); assert(context->scriptCursor==7);
+    updates=1; context->sideEffectMon=0; context->battleMons[0].statusVolatile=VOLATILE_CONDITION_SUBSTITUTE;
+    context->scriptCursor=0; BtlCmd_CheckSubstitute(system,context); assert(context->scriptCursor==7);
+
+    prepare(context); context->attacker=0; context->defender=1; context->moveCur=MOVE_BITE;
+    context->battleMons[0].ability=ABILITY_INFILTRATOR;
+    context->battleMons[1].statusVolatile=VOLATILE_CONDITION_SUBSTITUTE;
+    context->battleMons[1].moveEffectsData.substituteHP=50; context->damage=-20;
+    BattleControllerPlayer_UpdateHP(system,context);
+    assert(context->battleMons[1].moveEffectsData.substituteHP==30 && loadedScript==subscript_hit_substitute);
+    updates=1; context->battleMons[1].moveEffectsData.substituteHP=50; context->damage=-20;
+    BattleControllerPlayer_UpdateHP(system,context);
+    assert(context->battleMons[1].moveEffectsData.substituteHP==50 && loadedScript==subscript_update_hp);
+    assert(context->hpCalcTemp==-20 && context->battleMons[1].curHP==100);
+    context->attacker=context->defender=0; context->battleMons[0].statusVolatile=VOLATILE_CONDITION_SUBSTITUTE;
+    context->battleMons[0].moveEffectsData.substituteHP=50; context->damage=-20;
+    BattleControllerPlayer_UpdateHP(system,context); assert(context->battleMons[0].moveEffectsData.substituteHP==30);
+
+    prepare(context); context->battleMons[0].ability=ABILITY_INFILTRATOR;
+    int plain=BattleSystem_CalcMoveDamage(system,context,MOVE_BITE,0,0,60,TYPE_DARK,0,1,1);
+    int reflected=BattleSystem_CalcMoveDamage(system,context,MOVE_BITE,SIDE_CONDITION_REFLECT,0,60,TYPE_DARK,0,1,1);
+    assert(reflected<plain); updates=1;
+    assert(BattleSystem_CalcMoveDamage(system,context,MOVE_BITE,SIDE_CONDITION_REFLECT,0,60,TYPE_DARK,0,1,1)==plain);
+    context->battleMons[0].moveEffectsMask=MOVE_EFFECT_ABILITY_SUPPRESSED;
+    assert(BattleSystem_CalcMoveDamage(system,context,MOVE_BITE,SIDE_CONDITION_REFLECT,0,60,TYPE_DARK,0,1,1)==reflected);
+
+    prepare(context); context->attacker=0; context->defender=1; context->moveCur=MOVE_BITE;
+    context->battleMons[0].ability=ABILITY_UNSEEN_FIST;
+    context->aiContext.moveTable[MOVE_BITE].flags=MOVE_FLAG_CAN_PROTECT|MOVE_FLAG_MAKES_CONTACT;
+    context->turnFlags[1].protecting=1; int previousUnlocks=unlocks;
+    BattleControllerPlayer_CheckMoveHitOverrides(system,context,0,1,MOVE_BITE);
+    assert(context->moveStatusFlags & MOVE_STATUS_PROTECTED); assert(unlocks==previousUnlocks+1);
+    updates=1; context->moveStatusFlags=0;
+    BattleControllerPlayer_CheckMoveHitOverrides(system,context,0,1,MOVE_BITE);
+    assert(!(context->moveStatusFlags & MOVE_STATUS_PROTECTED)); assert(unlocks==previousUnlocks+1);
+    assert(!CommunityAbility_BattlerBypassesProtect(context,0,MOVE_BITE,TRUE));
+    context->aiContext.moveTable[MOVE_BITE].flags=MOVE_FLAG_CAN_PROTECT;
+    BattleControllerPlayer_CheckMoveHitOverrides(system,context,0,1,MOVE_BITE);
+    assert(context->moveStatusFlags & MOVE_STATUS_PROTECTED);
+    context->moveStatusFlags=0; context->aiContext.moveTable[MOVE_BITE].flags|=MOVE_FLAG_MAKES_CONTACT;
+    context->battleMons[0].moveEffectsMask=MOVE_EFFECT_ABILITY_SUPPRESSED;
+    BattleControllerPlayer_CheckMoveHitOverrides(system,context,0,1,MOVE_BITE);
+    assert(context->moveStatusFlags & MOVE_STATUS_PROTECTED);
+    context->moveStatusFlags=0; context->battleStatusMask=SYSCTL_FIRST_OF_MULTI_TURN;
+    BattleControllerPlayer_CheckMoveHitOverrides(system,context,0,1,MOVE_BITE);
+    assert(!(context->moveStatusFlags & MOVE_STATUS_PROTECTED));
+    assert(!CommunityAbility_BattlerInfiltrates(context,-1));
+    assert(!CommunityAbility_BattlerBypassesProtect(context,4,MOVE_BITE,FALSE));
+    assert(!CommunityAbility_BattlerBypassesProtect(context,0,MAX_MOVES,FALSE));
+}
 int main(void)
 {
     BattleSystem system={4,0,84}; BattleContext context;
@@ -180,6 +293,7 @@ int main(void)
     message->ability=ABILITY_TURBOBLAZE; message->move=MOVE_HEAL_BELL; updates=1;
     BtlIOCmd_RefreshPartyStatus(&system,&data); assert(partyStatuses[0]==0 && partyStatuses[1]==0);
     modern=0; assert(!CommunityAbility_IgnoresDefenses(ABILITY_TURBOBLAZE));
-    puts("Actual 0.1.10 ability damage/accuracy/order/defense bypass/party-refresh fixtures passed");
+    barrierCases(&system,&context);
+    puts("Actual 0.1.10 ability damage/accuracy/order/bypass/party/barrier fixtures passed");
     return 0;
 }

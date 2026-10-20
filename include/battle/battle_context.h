@@ -10,6 +10,7 @@
 #include "battle/ai_context.h"
 #include "battle/battle_mon.h"
 #include "battle/community_stat_stage.h"
+#include "battle/community_forms.h"
 #include "battle_anim/struct_ball_rotation_decl.h"
 
 #include "char_transfer.h"
@@ -329,6 +330,7 @@ struct BattleContext {
     u32 padding3154_01 : 31;
 
     CommunityStatStageQueue communityStatStages;
+    CommunityBattleForms communityForms;
 };
 
 #endif // POKEPLATINUM_BATTLE_BATTLE_CONTEXT_H

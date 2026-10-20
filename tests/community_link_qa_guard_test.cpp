@@ -3,6 +3,11 @@
 #include <cassert>
 #include <cstdio>
 #include <fstream>
+static std::string Utf8(const std::filesystem::path& path)
+{
+    const auto encoded = path.u8string();
+    return std::string(reinterpret_cast<const char*>(encoded.data()), encoded.size());
+}
 int main(int argc, char** argv)
 {
     namespace fs = std::filesystem;
@@ -27,24 +32,24 @@ int main(int argc, char** argv)
     fs::current_path(host);
     Directory result;
     std::string error;
-    assert(Validate(host.u8string(), "host", result, error));
+    assert(Validate(Utf8(host), "host", result, error));
     assert(result.nonce == nonce && result.role == "host" && result.path == host);
     assert(!Validate(".", "host", result, error));
-    assert(!Validate(parent.u8string(), "host", result, error));
-    assert(!Validate(host.u8string(), "guest", result, error));
+    assert(!Validate(Utf8(parent), "host", result, error));
+    assert(!Validate(Utf8(host), "guest", result, error));
     std::ofstream(host / "save.bin") << "existing-save-must-not-open";
-    assert(!Validate(host.u8string(), "host", result, error));
+    assert(!Validate(Utf8(host), "host", result, error));
     assert(ReadSmall(host / "save.bin", 64) == "existing-save-must-not-open");
     fs::remove(host / "save.bin");
     fs::create_directory(host / "CommunityOnline");
-    assert(!Validate(host.u8string(), "host", result, error));
+    assert(!Validate(Utf8(host), "host", result, error));
     fs::remove(host / "CommunityOnline");
     const auto party = parent / ("community-link-qa-" + nonce + ".party");
     assert(WriteNew(party, "old-nonce"));
-    assert(!Validate(host.u8string(), "host", result, error));
+    assert(!Validate(Utf8(host), "host", result, error));
     fs::remove(party);
     std::ofstream(host / ".community-link-qa", std::ios::trunc) << "wrong-marker";
-    assert(!Validate(host.u8string(), "host", result, error));
+    assert(!Validate(Utf8(host), "host", result, error));
     fs::current_path(original);
     std::error_code ec;
     const auto alias = parent / "alias";

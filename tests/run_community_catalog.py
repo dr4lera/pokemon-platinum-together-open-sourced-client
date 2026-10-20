@@ -32,7 +32,7 @@ class Catalog(ctypes.Structure):
                 ("spriteData", (ctypes.c_uint8 * 89) * 65), ("spriteHeights", (ctypes.c_uint8 * 2) * 65),
                 ("iconPalettes", ctypes.c_uint8 * 65), ("formGraphics", (ctypes.c_uint8 * 6) * 4), ("fairyMovePalette", ctypes.c_uint8 * 32),
                 ("modernMoves", (ctypes.c_uint8 * 16) * 374), ("statStages", (ctypes.c_uint8 * 12) * 41),
-                ("sideEffectScripts", (ctypes.c_uint8 * 4) * 33), ("metronomeExclusions", (ctypes.c_uint8 * 2) * 34)]
+                ("sideEffectScripts", (ctypes.c_uint8 * 4) * 33), ("metronomeExclusions", (ctypes.c_uint8 * 2) * 34), ("formStats", (ctypes.c_uint8 * 8) * 3)]
 
 
 class Metadata(ctypes.Structure):
@@ -40,7 +40,7 @@ class Metadata(ctypes.Structure):
 
 
 def wrap(payload):
-    return b"PTCAT04\0" + bytes.fromhex(REFERENCE) + struct.pack("<II", len(payload), zlib.crc32(payload)) + payload
+    return b"PTCAT05\0" + bytes.fromhex(REFERENCE) + struct.pack("<II", len(payload), zlib.crc32(payload)) + payload
 
 
 def main():
@@ -140,12 +140,14 @@ def main():
             stage_records = b"".join(struct.pack("<HBB7bB", 474 + i, i % 5, i % 4, -2, -1, 0, 1, 2, 3, 0, 0) for i in range(41))
             side_records = b"".join(struct.pack("<I", 297 + i) for i in range(33))
             excluded_records = b"".join(struct.pack("<H", 474 + i) for i in range(34))
-            payload += modern_records + stage_records + side_records + excluded_records
+            form_stat_records = b"".join(struct.pack("<HB5B", 512 + i, i % 2 + 1, 10 + i, 20 + i, 30 + i, 40 + i, 50 + i) for i in range(3))
+            payload += modern_records + stage_records + side_records + excluded_records + form_stat_records
+            form_stats_at = len(payload) - len(form_stat_records)
             blob = wrap(payload)
-            assert len(blob) == 36632 and load(blob) == 1
-            for damaged in (blob[:-1], blob + b"\0", bytes([blob[0] ^ 1]) + blob[1:], blob[:8] + bytes(32) + blob[40:], blob[:-1] + bytes([blob[-1] ^ 1]), b"PTCAT01\0" + blob[8:], b"PTCAT02\0" + blob[8:], b"PTCAT03\0" + blob[8:], wrap(old_payload)):
+            assert len(blob) == 36656 and load(blob) == 1
+            for damaged in (blob[:-1], blob + b"\0", bytes([blob[0] ^ 1]) + blob[1:], blob[:8] + bytes(32) + blob[40:], blob[:-1] + bytes([blob[-1] ^ 1]), b"PTCAT01\0" + blob[8:], b"PTCAT02\0" + blob[8:], b"PTCAT03\0" + blob[8:], b"PTCAT04\0" + blob[8:], wrap(old_payload)):
                 assert load(damaged) == 0 and catalog.valid == 0
-            for offset, value in ((6, 19), (19, 6), (22, 144), (65 * 44 + 8, 1), (19951, 1), (19954, 19), (20084, 19), (len(payload) - 1, 128)):
+            for offset, value in ((6, 19), (19, 6), (22, 144), (65 * 44 + 8, 1), (19951, 1), (19954, 19), (20084, 19), (len(payload) - 1, 0)):
                 damaged = bytearray(payload)
                 damaged[offset] = value
                 assert load(wrap(damaged)) == 0 and catalog.valid == 0
@@ -182,6 +184,26 @@ def main():
                 damaged = bytearray(payload)
                 damaged[offset:offset + len(replacement)] = replacement
                 assert load(wrap(damaged)) == 0 and catalog.valid == 0
+            for offset, replacement in ((form_stats_at, b"\xff\xff"), (form_stats_at + 2, b"\0"),
+                (form_stats_at + 2, b"\x7f"), (form_stats_at + 3, b"\0"),
+                (form_stats_at + 8, form_stat_records[:3])):
+                damaged = bytearray(payload)
+                damaged[offset:offset + len(replacement)] = replacement
+                assert load(wrap(damaged)) == 0 and catalog.valid == 0
+            assert load(blob) == 1
+            form_stats = library.CommunityCatalog_FormStats
+            form_stats.argtypes = [ctypes.POINTER(Catalog), ctypes.c_uint, ctypes.c_uint, ctypes.POINTER(ctypes.c_uint8)]
+            form_stats.restype = ctypes.c_int
+            stat_out = (ctypes.c_uint8 * 5)(*([99] * 5))
+            for i in range(3):
+                assert form_stats(ctypes.byref(catalog), 512 + i, i % 2 + 1, stat_out) == 1
+                assert bytes(stat_out) == form_stat_records[i * 8 + 3:i * 8 + 8]
+            before = bytes(stat_out)
+            for species, form in ((511, 1), (577, 1), (512, 0), (512, 255), (512, 257), (515, 2)):
+                assert form_stats(ctypes.byref(catalog), species, form, stat_out) == 0 and bytes(stat_out) == before
+            assert form_stats(None, 512, 1, stat_out) == 0 and form_stats(ctypes.byref(catalog), 512, 1, None) == 0
+            catalog.valid = 0
+            assert form_stats(ctypes.byref(catalog), 512, 1, stat_out) == 0 and bytes(stat_out) == before
             assert load(blob) == 1
             record = (ctypes.c_uint8 * 16)()
             stage = (ctypes.c_uint8 * 12)()
@@ -266,7 +288,7 @@ def main():
             assert sprite_index(ctypes.byref(catalog), 512, 0, None) == 0
             assert icon(ctypes.byref(catalog), 512, None, ctypes.byref(palette)) == 0
             assert icon(ctypes.byref(catalog), 512, ctypes.byref(archive), None) == 0
-            print("Community V4 catalog: strict format/integrity, species/graphics and modern move/stat/route bounds, immutable output on failure and transactional supplements passed.")
+            print("Community V5 catalog: strict format/integrity, species/graphics and modern move/stat/route bounds, immutable output on failure and transactional supplements passed.")
 
             if args.reference:
                 # Use system temp: extracted runtime bytes never enter the checkout.
@@ -301,6 +323,10 @@ def main():
                     assert bytes(catalog.statStages) == image[0xE1ABE0:0xE1ABE0 + 492]
                     assert bytes(catalog.sideEffectScripts) == image[0xDE6F80 + 145 * 4:0xDE6F80 + 178 * 4]
                     assert bytes(catalog.metronomeExclusions) == image[0xE1AB80:0xE1AB80 + 68]
+                    assert bytes(catalog.formStats) == image[0xE1AEA0:0xE1AEA0 + 24]
+                    for row in catalog.formStats:
+                        species, form, *expected = struct.unpack("<HB5B", bytes(row))
+                        assert form_stats(ctypes.byref(catalog), species, form, stat_out) == 1 and list(stat_out) == expected
                     # Exact selected archive members, independently read using
                     # the serialized FAT/image offsets rather than importer API.
                     archive_bytes = args.move_archive.read_bytes()
@@ -334,7 +360,7 @@ def main():
                     moves.entries[0].move, moves.entries[0].level = 1, 1
                     assert supplement(ctypes.byref(catalog), 35, ctypes.byref(moves)) == 0
                     assert [(e.move, e.level) for e in moves.entries[:moves.count]] == [(1, 1), (469, 1), (473, 46)]
-                    print("Pinned reference: all V4 numeric species/graphics and374 move/stat/route/exclusion tables match; personal/learnsets and32/25/70 legacy overrides retained.")
+                    print("Pinned reference: all V5 numeric species/graphics and374 move/stat/route/exclusion tables match; personal/learnsets and32/25/70 legacy overrides retained.")
         finally:
             import _ctypes
             if os.name == "nt":

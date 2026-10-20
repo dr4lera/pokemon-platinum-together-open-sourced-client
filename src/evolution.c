@@ -35,6 +35,7 @@
 #include "party.h"
 #include "pokedex.h"
 #include "pokemon.h"
+#include "port/community_form_rules.h"
 #include "pokemon_anim.h"
 #include "pokemon_sprite.h"
 #include "poketch.h"
@@ -432,6 +433,7 @@ static void Evolution_Main(EvolutionData *evolutionData)
         break;
     case EVOLUTION_STATE_SET_POKEMON_VALUES_AND_PRINT_CONGRATULATIONS:
         if (Sound_IsPokemonCryPlaying() == FALSE && PokemonAnimManager_HasAnimCompleted(evolutionData->monAnimMan, 0) == TRUE && PokemonSprite_IsAnimActive(evolutionData->monSprites[1]) == FALSE) {
+            Pokemon_ApplyCommunityEvolutionForm(evolutionData->mon, evolutionData->targetSpecies);
             Pokemon_SetValue(evolutionData->mon, MON_DATA_SPECIES, (u8 *)&evolutionData->targetSpecies);
             Pokemon_CalcAbility(evolutionData->mon);
             Pokemon_CalcLevelAndStats(evolutionData->mon);

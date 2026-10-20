@@ -13,6 +13,7 @@
 #include "constants/species.h"
 #include "constants/string.h"
 #include "generated/abilities.h"
+#include "generated/battle_subscripts.h"
 #include "generated/game_records.h"
 #include "generated/genders.h"
 
@@ -28,6 +29,8 @@
 #include "battle/battle_system.h"
 #include "battle/common.h"
 #include "battle/community_ability_rules.h"
+#include "battle/community_barrier_rules.h"
+#include "battle/community_forms.h"
 
 #include "charcode_util.h"
 #include "comm_manager.h"
@@ -42,6 +45,7 @@
 #include "pokemon.h"
 #include "port/community_catalog.h"
 #include "port/community_modern_rules.h"
+#include "port/community_form_rules.h"
 #include "string_gf.h"
 #include "trainer_data.h"
 #include "trainer_info.h"
@@ -167,6 +171,173 @@ void BattleSystem_InitBattleMon(BattleSystem *battleSys, BattleContext *battleCt
     } else if (battleCtx->battleMons[battler].heldItem) {
         battleCtx->battleMons[battler].moveEffectsData.canUnburden = TRUE;
     }
+    CommunityForms_PartyLoaded(battleSys, battleCtx, battler, mon);
+}
+
+static BOOL CommunityForms_Eligible(BattleContext *ctx, int battler, unsigned species, unsigned ability)
+{
+    return CommunityModernRules_Enabled() && battler >= 0 && battler < MAX_BATTLERS
+        && ctx->battleMons[battler].species == species && ctx->battleMons[battler].curHP > 0
+        && Battler_Ability(ctx, battler) == ability
+        && !(ctx->battleMons[battler].statusVolatile & VOLATILE_CONDITION_TRANSFORM);
+}
+
+static BOOL CommunityForms_Remembered(const uint32_t *list, unsigned count, uint32_t personality)
+{
+    for (unsigned i = 0; i < count && i < 24; i++) {
+        if (list[i] == personality) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+static void CommunityForms_Remember(uint32_t *list, uint8_t *count, uint32_t personality)
+{
+    if (*count < 24) {
+        list[(*count)++] = personality;
+    }
+}
+
+static void CommunityForms_SetForm(BattleContext *ctx, int battler, Pokemon *partyMon, unsigned form)
+{
+    BattleMon *mon = &ctx->battleMons[battler];
+    uint16_t stats[5];
+    mon->formNum = form;
+    if (Pokemon_CalcCommunityFormStats(partyMon, mon->species, form, stats)) {
+        mon->attack = stats[0];
+        mon->defense = stats[1];
+        mon->speed = stats[2];
+        mon->spAttack = stats[3];
+        mon->spDefense = stats[4];
+        if (mon->moveEffectsMask & MOVE_EFFECT_POWER_TRICK) {
+            mon->attack = stats[1];
+            mon->defense = stats[0];
+        }
+    }
+}
+
+static void CommunityForms_Change(BattleSystem *sys, BattleContext *ctx, int battler, unsigned form)
+{
+    Pokemon *partyMon = BattleSystem_GetPartyPokemon(sys, battler, ctx->selectedPartySlot[battler]);
+    CommunityForms_SetForm(ctx, battler, partyMon, form);
+    ctx->msgBattlerTemp = battler;
+}
+
+void CommunityForms_PartyLoaded(BattleSystem *sys, BattleContext *ctx, int battler, Pokemon *partyMon)
+{
+    (void)sys;
+    if (!CommunityModernRules_Enabled() || battler < 0 || battler >= MAX_BATTLERS) {
+        return;
+    }
+    BattleMon *mon = &ctx->battleMons[battler];
+    ctx->communityForms.schoolingPending |= 1U << battler;
+    if (mon->species == COMMUNITY_FORM_DISGUISE_SPECIES
+        && CommunityForms_Remembered(ctx->communityForms.brokenDisguises, ctx->communityForms.brokenCount, mon->personality)) {
+        mon->formNum = 1;
+    }
+    if (mon->species == COMMUNITY_FORM_BOND_SPECIES && mon->formNum == 1
+        && CommunityForms_Remembered(ctx->communityForms.bondedPokemon, ctx->communityForms.bondedCount, mon->personality)) {
+        CommunityForms_SetForm(ctx, battler, partyMon, 2);
+    }
+}
+
+int CommunityForms_CheckSchooling(BattleSystem *sys, BattleContext *ctx, int pendingOnly)
+{
+    if (!CommunityModernRules_Enabled()) {
+        return 0;
+    }
+    for (int i = 0; i < BattleSystem_GetMaxBattlers(sys); i++) {
+        int battler = ctx->monSpeedOrder[i];
+        if (battler < 0 || battler >= MAX_BATTLERS || (pendingOnly && !(ctx->communityForms.schoolingPending & (1U << battler)))) {
+            continue;
+        }
+        ctx->communityForms.schoolingPending &= ~(1U << battler);
+        if (CommunityForms_Eligible(ctx, battler, COMMUNITY_FORM_SCHOOL_SPECIES, ABILITY_SCHOOLING)) {
+            BattleMon *mon = &ctx->battleMons[battler];
+            unsigned form = mon->level >= 20 && (uint64_t)mon->curHP * 4 > mon->maxHP;
+            if (form != mon->formNum) {
+                CommunityForms_Change(sys, ctx, battler, form);
+                return form ? BATTLE_SUBSCRIPT_COMMUNITY_SCHOOL_FORM : BATTLE_SUBSCRIPT_COMMUNITY_SCHOOL_SOLO;
+            }
+        }
+    }
+    return 0;
+}
+
+int CommunityForms_BeforeMove(BattleSystem *sys, BattleContext *ctx)
+{
+    int battler = ctx->attacker;
+    if (!CommunityForms_Eligible(ctx, battler, COMMUNITY_FORM_STANCE_SPECIES, ABILITY_STANCE_CHANGE) || ctx->moveCur == MOVE_NONE) {
+        return 0;
+    }
+    unsigned form = ctx->battleMons[battler].formNum;
+    if (ctx->moveCur == 589 && form != 0) {
+        CommunityForms_Change(sys, ctx, battler, 0);
+        return BATTLE_SUBSCRIPT_COMMUNITY_STANCE_DEFENSE;
+    }
+    if (ctx->moveCur < MAX_MOVES && ctx->aiContext.moveTable[ctx->moveCur].class != CLASS_STATUS && form == 0) {
+        CommunityForms_Change(sys, ctx, battler, 1);
+        return BATTLE_SUBSCRIPT_COMMUNITY_STANCE_ATTACK;
+    }
+    return 0;
+}
+
+int CommunityForms_InterceptDamage(BattleSystem *sys, BattleContext *ctx)
+{
+    int battler = ctx->defender;
+    if (ctx->damage >= 0 || !CommunityForms_Eligible(ctx, battler, COMMUNITY_FORM_DISGUISE_SPECIES, ABILITY_DISGUISE)
+        || ctx->battleMons[battler].formNum != 0
+        || !Battler_IgnorableAbility(ctx, ctx->attacker, battler, ABILITY_DISGUISE)) {
+        return 0;
+    }
+    CommunityForms_Change(sys, ctx, battler, 1);
+    CommunityForms_Remember(ctx->communityForms.brokenDisguises, &ctx->communityForms.brokenCount, ctx->battleMons[battler].personality);
+    ctx->damage = 0;
+    ctx->hpCalcTemp = -(int)(ctx->battleMons[battler].maxHP / 8);
+    if (ctx->hpCalcTemp == 0) {
+        ctx->hpCalcTemp = -1;
+    }
+    return BATTLE_SUBSCRIPT_COMMUNITY_DISGUISE_BREAK;
+}
+
+void CommunityForms_MarkKnockout(BattleSystem *sys, BattleContext *ctx)
+{
+    int attacker = ctx->attacker, defender = ctx->defender;
+    if (CommunityModernRules_Enabled() && attacker >= 0 && attacker < MAX_BATTLERS
+        && defender >= 0 && defender < MAX_BATTLERS && attacker != defender
+        && BattleSystem_GetBattlerSide(sys, attacker) != BattleSystem_GetBattlerSide(sys, defender)) {
+        ctx->communityForms.knockoutPending |= 1U << attacker;
+    }
+}
+
+int CommunityForms_AfterMove(BattleSystem *sys, BattleContext *ctx)
+{
+    unsigned pending = ctx->communityForms.knockoutPending;
+    ctx->communityForms.knockoutPending = 0;
+    int battler = ctx->attacker;
+    if (!CommunityForms_Eligible(ctx, battler, COMMUNITY_FORM_BOND_SPECIES, ABILITY_BATTLE_BOND)
+        || !(pending & (1U << battler)) || ctx->battleMons[battler].formNum != 1) {
+        return 0;
+    }
+    CommunityForms_Change(sys, ctx, battler, 2);
+    CommunityForms_Remember(ctx->communityForms.bondedPokemon, &ctx->communityForms.bondedCount, ctx->battleMons[battler].personality);
+    return BATTLE_SUBSCRIPT_COMMUNITY_BATTLE_BOND;
+}
+
+/* The full modern move catalog remains unadmitted. These hooks are deliberately
+ * dormant until move595 has its separate data, script and resource admission. */
+int CommunityForms_BondShuriken(BattleContext *ctx, unsigned move, int battler)
+{
+    return CommunityModernRules_Enabled() && move == 595 && battler >= 0 && battler < MAX_BATTLERS
+        && ctx->battleMons[battler].species == COMMUNITY_FORM_BOND_SPECIES
+        && ctx->battleMons[battler].formNum == 2
+        && !(ctx->battleMons[battler].statusVolatile & VOLATILE_CONDITION_TRANSFORM);
+}
+
+int CommunityForms_AdjustPower(BattleContext *ctx, unsigned move, int power, int battler)
+{
+    return CommunityForms_BondShuriken(ctx, move, battler) ? 20 : power;
 }
 
 void BattleSystem_ReloadPokemon(BattleSystem *battleSys, BattleContext *battleCtx, int battler, int partySlot)
@@ -1186,6 +1357,18 @@ static inline int CompareSpeed_ApplySimple(BattleContext *battleCtx, int battler
     }
 
     return stage;
+}
+
+int CommunityAbility_BattlerInfiltrates(BattleContext *battleCtx, int battler)
+{
+    return battler >= 0 && battler < MAX_BATTLERS
+        && CommunityAbility_Infiltrates(Battler_Ability(battleCtx, battler));
+}
+
+int CommunityAbility_BattlerBypassesProtect(BattleContext *battleCtx, int battler, unsigned move, int priorityBlocked)
+{
+    return battler >= 0 && battler < MAX_BATTLERS && move < MAX_MOVES
+        && CommunityAbility_BypassesProtect(Battler_Ability(battleCtx, battler), MOVE_DATA(move).flags, priorityBlocked);
 }
 
 static int CommunityAbility_MovePriority(BattleContext *battleCtx, int battler, unsigned move, int priority)
@@ -4274,6 +4457,8 @@ int BattleSystem_TriggerEffectOnSwitch(BattleSystem *battleSys, BattleContext *b
         case SWITCH_IN_CHECK_STATE_FORM_CHANGE:
             if (BattleSystem_TriggerFormChange(battleSys, battleCtx, &subscript) == TRUE) {
                 result = SWITCH_IN_CHECK_RESULT_BREAK;
+            } else if ((subscript = CommunityForms_CheckSchooling(battleSys, battleCtx, TRUE)) != 0) {
+                result = SWITCH_IN_CHECK_RESULT_BREAK;
             } else {
                 battleCtx->switchInCheckState++;
             }
@@ -6837,6 +7022,10 @@ int BattleSystem_CalcMoveDamage(BattleSystem *battleSys,
 
     GF_ASSERT(criticalMul == 1 || criticalMul > 1);
 
+    if (CommunityAbility_BattlerInfiltrates(battleCtx, attacker)) {
+        sideConditions = 0;
+    }
+
     attackStat = BattleMon_Get(battleCtx, attacker, BATTLEMON_ATTACK, NULL);
     defenseStat = BattleMon_Get(battleCtx, defender, BATTLEMON_DEFENSE, NULL);
     spAttackStat = BattleMon_Get(battleCtx, attacker, BATTLEMON_SP_ATTACK, NULL);
@@ -6880,6 +7069,8 @@ int BattleSystem_CalcMoveDamage(BattleSystem *battleSys,
     } else {
         movePower = inPower;
     }
+
+    movePower = CommunityForms_AdjustPower(battleCtx, move, movePower, attacker);
 
     if (attackerParams.ability == ABILITY_NORMALIZE) {
         moveType = TYPE_NORMAL;

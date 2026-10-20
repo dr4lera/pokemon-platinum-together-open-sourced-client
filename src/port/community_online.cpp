@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "port/community_online.h"
+#include "port/community_trainer_art_download.h"
 #include <curl/curl.h>
 #include <curl/websockets.h>
 #include <openssl/evp.h>
@@ -22,6 +23,8 @@
 #include <filesystem>
 #include <fstream>
 #include <mutex>
+#include <limits>
+#include <map>
 #include <regex>
 #include <set>
 #include <stdexcept>
@@ -172,9 +175,27 @@ struct Service::Impl {
     std::thread linkWorker;
     CURL* socket=nullptr;
     Options options;
+    CommunityTrainerArt::Downloads artDownloads;
+    std::map<std::uint64_t,CommunityTrainerArt::Request> artRequests;
+    std::uint64_t nextArtRequest=0;
+    static bool SameArt(const ArtReference& a,const ArtReference& b){return a.creation==b.creation&&a.version==b.version&&a.format==b.format&&a.hash==b.hash;}
+    bool ArtCurrentLocked(const CommunityTrainerArt::Request& request) const {
+        if(stop||snapshot.state!=State::Ready||snapshot.connections!=request.connection||linkStop||linkCancelPending
+            ||link.state!=LinkState::Active||link.session!=request.session||link.epoch!=request.epoch||link.expiresAtMs<=Now()
+            ||snapshot.partyId!=link.party||snapshot.members.size()!=link.roster.size())return false;
+        bool found=false;
+        for(std::size_t i=0;i<link.roster.size();i++){
+            const auto& member=snapshot.members[i];
+            if(member.player!=link.roster[i].player||!member.online)return false;
+            if(member.player==request.player)found=member.appearance.hasArt&&SameArt(member.appearance.art,request.art);
+        }
+        return found;
+    }
+    void ClearArtLocked(){artRequests.clear();artDownloads.Clear();}
+    void PruneArtLocked(){for(auto i=artRequests.begin();i!=artRequests.end();)if(!ArtCurrentLocked(i->second)){artDownloads.Cancel(i->first);i=artRequests.erase(i);}else ++i;}
     static int Cancel(void* p,curl_off_t,curl_off_t,curl_off_t,curl_off_t){return static_cast<Impl*>(p)->stop?1:0;}
     static int LinkCancel(void* p,curl_off_t,curl_off_t,curl_off_t,curl_off_t){auto self=static_cast<Impl*>(p);return self->stop||self->linkStop?1:0;}
-    void ClearLinkLocked(){linkOutgoing.clear();linkIncoming.clear();linkOutgoingBytes=linkIncomingBytes=0;}
+    void ClearLinkLocked(){linkOutgoing.clear();linkIncoming.clear();linkOutgoingBytes=linkIncomingBytes=0;ClearArtLocked();}
     void EndLink(const std::string& reason,bool failed=false){std::lock_guard<std::mutex> guard(mutex);linkStop=true;linkWanted=false;linkPreparePending=false;ClearLinkLocked();if(link.state!=LinkState::Idle){if(link.state!=LinkState::Failed){link.state=failed?LinkState::Failed:LinkState::Ended;link.error=reason;}}}
     void JoinLink(){linkStop=true;if(linkWorker.joinable())linkWorker.join();std::lock_guard<std::mutex> guard(mutex);linkCancelPending=requestLinkCancel=linkPreparePending=false;}
     void LinkFailure(const std::string& reason){EndLink(reason,true);std::lock_guard<std::mutex> guard(mutex);if(snapshot.state==State::Ready){requestLinkCancel=true;linkCancelPending=true;}}
@@ -232,7 +253,7 @@ struct Service::Impl {
     static size_t Receive(char* bytes,size_t size,size_t count,void* target){std::string& text=*static_cast<std::string*>(target);std::size_t n=size*count;if(n>65536-text.size())return 0;text.append(bytes,n);return n;}
     void Setup(CURL* curl,const std::string& url){curl_easy_setopt(curl,CURLOPT_URL,url.c_str());curl_easy_setopt(curl,CURLOPT_CONNECTTIMEOUT_MS,8000L);curl_easy_setopt(curl,CURLOPT_TIMEOUT_MS,15000L);curl_easy_setopt(curl,CURLOPT_NOSIGNAL,1L);curl_easy_setopt(curl,CURLOPT_FOLLOWLOCATION,0L);curl_easy_setopt(curl,CURLOPT_SSL_VERIFYPEER,1L);curl_easy_setopt(curl,CURLOPT_SSL_VERIFYHOST,2L);curl_easy_setopt(curl,CURLOPT_SSL_OPTIONS,static_cast<long>(CURLSSLOPT_NATIVE_CA));curl_easy_setopt(curl,CURLOPT_CAINFO,nullptr);curl_easy_setopt(curl,CURLOPT_CAPATH,nullptr);curl_easy_setopt(curl,CURLOPT_PROXY,"");curl_easy_setopt(curl,CURLOPT_NOPROGRESS,0L);curl_easy_setopt(curl,CURLOPT_XFERINFOFUNCTION,Cancel);curl_easy_setopt(curl,CURLOPT_XFERINFODATA,this);}
     Doc Http(const std::string& path,const Doc* body=nullptr){CURL* c=curl_easy_init();Need(c,"curl_init_failed");Setup(c,options.serverUrl+path);std::string received,payload;curl_slist* headers=nullptr;curl_easy_setopt(c,CURLOPT_WRITEFUNCTION,Receive);curl_easy_setopt(c,CURLOPT_WRITEDATA,&received);if(body){payload=Json(*body);headers=curl_slist_append(headers,"Content-Type: application/json");curl_easy_setopt(c,CURLOPT_HTTPHEADER,headers);curl_easy_setopt(c,CURLOPT_POSTFIELDS,payload.data());curl_easy_setopt(c,CURLOPT_POSTFIELDSIZE,static_cast<long>(payload.size()));}CURLcode code=curl_easy_perform(c);long status=0;curl_easy_getinfo(c,CURLINFO_RESPONSE_CODE,&status);curl_slist_free_all(headers);curl_easy_cleanup(c);if(code!=CURLE_OK)throw Error("http_transport_failed",true);Doc d=Parse(received);if(status!=200)throw Error(d.HasMember("error")?String(d,"error",64):"http_refused");return d;}
-    void ClearPresentationLocked(){snapshot.trainer=TrainerSnapshot{};snapshot.city=CitySnapshot{};trainerRequest=requestCityLeave=false;}
+    void ClearPresentationLocked(){snapshot.trainer=TrainerSnapshot{};snapshot.city=CitySnapshot{};trainerRequest=requestCityLeave=false;ClearArtLocked();}
     void StateTo(State state,const std::string& error={}){std::lock_guard<std::mutex> guard(mutex);snapshot.state=state;snapshot.error=error;if(state==State::Connecting){linkCancelPending=requestLinkCancel=linkPreparePending=false;ClearPresentationLocked();}if(state==State::Failed)ClearPresentationLocked();}
     bool Queue(Doc d){std::string json;try{json=Json(d);}catch(...){return false;}std::lock_guard<std::mutex> guard(mutex);if(snapshot.state!=State::Ready||commands.size()>=64)return false;commands.push_back(std::move(json));return true;}
     void Send(const Doc& d){Send(Json(d));}
@@ -242,7 +263,7 @@ struct Service::Impl {
         auto nonce=String(challenge,"nonce");Bytes proof=Domain("PT-PRIVATE-ACCOUNT");Append(proof,Un64(nonce,32,32));std::string lower=action=="register"?p.username:"";std::transform(lower.begin(),lower.end(),lower.begin(),[](unsigned char c){return static_cast<char>(std::tolower(c));});std::string binding=action;binding.push_back(0);binding+=lower;binding.push_back(0);binding+=p.publicKey;Append(proof,Hash(Data(binding)));Put(request,"nonce",nonce);Put(request,"sig",B64(p.key.Sign(proof)));Doc response=Http("/auth/account",&request);Need(String(response,"hub_key")==options.serverKey,"server_identity_changed");Token token=CheckToken(String(response,"token"),options,p);Need(token.player==String(response,"player_id",20)&&token.expires==Number(response,"expires_at_ms"),"account_identity_mismatch");p.player=token.player;p.username=String(response,"username",16);p.pending=false;p.Write(options);return token;
     }
     void Party(const Doc& d){Need(d.HasMember("party"),"bad_party");std::vector<Member> members;std::string id,code;if(!d["party"].IsNull()){const auto& p=d["party"];id=String(p,"id",64);code=String(p,"code",6);Need(p.HasMember("members")&&p["members"].IsArray()&&p["members"].Size()<=4,"bad_party");std::set<std::string> ids;for(const auto& m:p["members"].GetArray()){Member member;member.player=String(m,"player",20);member.name=String(m,"name",10);member.online=Boolean(m,"online");member.appearance=ReadAppearance(m);Need(PlayerId(member.player)&&TrainerName(member.name)&&ids.insert(member.player).second,"bad_party");members.push_back(std::move(member));}}
-        std::lock_guard<std::mutex> guard(mutex);snapshot.partyId=id;snapshot.partyCode=code;snapshot.members=std::move(members);}
+        std::lock_guard<std::mutex> guard(mutex);if(stop||snapshot.state!=State::Ready)return;snapshot.partyId=id;snapshot.partyCode=code;snapshot.members=std::move(members);PruneArtLocked();}
     void TrainerMessage(const Doc& d){Need(d.HasMember("trainer"),"bad_trainer");bool applied=Boolean(d,"applied");Trainer value;bool available=!d["trainer"].IsNull();if(available)value=ReadTrainer(d["trainer"]);Need(!applied||available,"bad_trainer");std::lock_guard<std::mutex> guard(mutex);if(stop||snapshot.state!=State::Ready)return;snapshot.trainer.conflict=snapshot.trainer.updating&&!applied;snapshot.trainer.updating=false;snapshot.trainer.loaded=true;snapshot.trainer.available=available;snapshot.trainer.value=std::move(value);trainerRequest=false;}
     void CityMessage(const Doc& d,const std::string& type){
         if(type=="city.joined"){
@@ -314,6 +335,27 @@ bool Service::UpdateTrainer(const Trainer& trainer){
 bool Service::EnterCity(){Doc d=Command("city.enter");Put(d,"district","plaza");std::lock_guard<std::mutex> guard(impl->mutex);if(impl->snapshot.state!=State::Ready||impl->snapshot.city.state!=CityState::Absent||impl->commands.size()>=64)return false;impl->commands.push_back(Json(d));impl->snapshot.city=CitySnapshot{};impl->snapshot.city.state=CityState::Entering;impl->snapshot.city.generation=impl->snapshot.connections;impl->cityDeadline=Clock::now()+std::chrono::seconds(15);return true;}
 bool Service::LeaveCity(){std::lock_guard<std::mutex> guard(impl->mutex);if(impl->snapshot.state!=State::Ready||impl->snapshot.city.state==CityState::Absent)return false;if(impl->snapshot.city.state==CityState::Leaving)return true;impl->snapshot.city.state=CityState::Leaving;impl->snapshot.city.players.clear();impl->snapshot.city.slot=255;impl->requestCityLeave=true;impl->cityDeadline=Clock::now()+std::chrono::seconds(15);return true;}
 bool Service::SetCityStatus(const std::string& status){if(!CityStatus(status))return false;Doc d=Command("city.status");Put(d,"status",status);std::lock_guard<std::mutex> guard(impl->mutex);if(impl->snapshot.state!=State::Ready||impl->snapshot.city.state!=CityState::Present||impl->commands.size()>=64)return false;impl->commands.push_back(Json(d));return true;}
+std::uint64_t Service::RequestTrainerArt(const std::string& player,const ArtReference& art){
+    std::lock_guard<std::mutex> guard(impl->mutex);
+    if(impl->artRequests.size()>=8||impl->nextArtRequest==std::numeric_limits<std::uint64_t>::max())return 0;
+    CommunityTrainerArt::Request request;request.id=++impl->nextArtRequest;request.connection=impl->snapshot.connections;request.session=impl->link.session;request.epoch=impl->link.epoch;request.player=player;request.art=art;
+    if(!impl->ArtCurrentLocked(request))return 0;
+    try{
+        if(!impl->artDownloads.Queue(request,impl->options.serverUrl))return 0;
+        impl->artRequests.emplace(request.id,request);return request.id;
+    }catch(...){impl->artDownloads.Cancel(request.id);return 0;}
+}
+bool Service::ReceiveTrainerArt(CommunityTrainerArt::DownloadResult& result){
+    CommunityTrainerArt::DownloadResult candidate;
+    while(impl->artDownloads.Poll(candidate)){
+        std::lock_guard<std::mutex> guard(impl->mutex);const auto found=impl->artRequests.find(candidate.request.id);
+        if(found==impl->artRequests.end())continue;
+        const bool current=impl->ArtCurrentLocked(candidate.request);impl->artRequests.erase(found);
+        if(current){result=std::move(candidate);return true;}
+    }
+    return false;
+}
+bool Service::CancelTrainerArt(std::uint64_t request){std::lock_guard<std::mutex> guard(impl->mutex);const auto found=impl->artRequests.find(request);if(found==impl->artRequests.end())return false;impl->artRequests.erase(found);impl->artDownloads.Cancel(request);return true;}
 LinkSnapshot Service::ReadLink() const {std::lock_guard<std::mutex> guard(impl->mutex);auto copy=impl->link;copy.cancelling=impl->linkCancelPending;return copy;}
 bool Service::PrepareLink(const std::string& catalogHash,const std::string& rulesHash){
     if(!Hex64(catalogHash)||!Hex64(rulesHash))return false;

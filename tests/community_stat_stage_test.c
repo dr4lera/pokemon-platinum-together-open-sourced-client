@@ -4,6 +4,7 @@
 #include <limits.h>
 #include "battle/battle_context.h"
 #include "battle/common.h"
+#include "battle/community_barrier_rules.h"
 #include "constants/battle/battle_script.h"
 #include "constants/items.h"
 #include "generated/abilities.h"
@@ -161,6 +162,18 @@ int main(void)
     assert(context.battleMons[1].statBoosts[BATTLE_STAT_DEFENSE] == 6);
     abilityUpdates = 0; apply(&system, &context);
     assert(context.battleMons[1].statBoosts[BATTLE_STAT_DEFENSE] == 5);
+
+    prepare(&context, 474, 1, 0); definition[4] = -1;
+    assert(CommunityStatStage_Build(&system, &context)); assert(CommunityStatStage_Next(&context));
+    context.battleMons[0].ability = ABILITY_INFILTRATOR;
+    context.sideConditions[1].mistTurns = 1;
+    context.battleMons[1].statusVolatile = VOLATILE_CONDITION_SUBSTITUTE;
+    apply(&system, &context); assert(context.battleMons[1].statBoosts[BATTLE_STAT_ATTACK] == 6);
+    abilityUpdates = 1; apply(&system, &context);
+    assert(context.battleMons[1].statBoosts[BATTLE_STAT_ATTACK] == 5);
+    context.battleMons[1].ability = ABILITY_CLEAR_BODY; apply(&system, &context);
+    assert(context.battleMons[1].statBoosts[BATTLE_STAT_ATTACK] == 5);
+    abilityUpdates = 0;
 
     prepare(&context, 474, 0, 0); definition[4] = 1;
     action(&system, &context, 5, 9); assert(context.scriptCursor == 4);

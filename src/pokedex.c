@@ -12,6 +12,15 @@
 #include "pokemon.h"
 #include "savedata.h"
 
+#ifdef SDK_PORT
+#include "port/community_modern_dex.h"
+#include "port/community_catalog.h"
+#include "port/community_modern_rules.h"
+_Static_assert(COMMUNITY_MODERN_SPECIES_FIRST == COMMUNITY_MODERN_DEX_FIRST, "Modern dex ID namespace changed");
+_Static_assert(COMMUNITY_MODERN_SPECIES_COUNT == COMMUNITY_MODERN_DEX_COUNT, "Modern dex ID count changed");
+_Static_assert(sizeof(((Pokedex *)0)->recordedLanguages) == COMMUNITY_MODERN_DEX_CARRIER_BYTES, "Modern dex carrier changed");
+#endif
+
 static const u16 sExcludedMonsNational[] = {
     SPECIES_MEW,
     SPECIES_LUGIA,
@@ -49,6 +58,24 @@ static inline void CheckPokedexIntegrity(const Pokedex *pokedexData)
 {
     GF_ASSERT(pokedexData->magic == MAGIC_NUMBER);
 }
+
+#ifdef SDK_PORT
+static BOOL Pokedex_TryRecordModern(Pokedex *pokedex, Pokemon *mon, u16 species, int caught)
+{
+    if (!CommunityModernDex_IsSpecies(species)) {
+        return FALSE;
+    }
+    CheckPokedexIntegrity(pokedex);
+    if (CommunityModernRules_Enabled()) {
+        const CommunityCatalog *catalog = CommunityCatalog_Runtime();
+        if (catalog != NULL && catalog->valid) {
+            CommunityModernDex_Record(pokedex->recordedLanguages, sizeof(pokedex->recordedLanguages),
+                species, caught, Pokemon_GetGender(mon));
+        }
+    }
+    return TRUE;
+}
+#endif
 
 static BOOL SpeciesInvalid(u16 species)
 {
@@ -845,6 +872,13 @@ u16 Pokedex_NumSeen_Local(const Pokedex *pokedexData)
 BOOL Pokedex_HasCaughtSpecies(const Pokedex *pokedex, u16 species)
 {
     CheckPokedexIntegrity(pokedex);
+#ifdef SDK_PORT
+    if (CommunityModernDex_IsSpecies(species)) {
+        CommunityModernDexEntry entry;
+        return CommunityModernDex_Read(pokedex->recordedLanguages, sizeof(pokedex->recordedLanguages),
+            species, &entry) == COMMUNITY_MODERN_DEX_VALID && entry.seen && entry.caught;
+    }
+#endif
 
     if (SpeciesInvalid(species)) {
         return FALSE;
@@ -860,6 +894,13 @@ BOOL Pokedex_HasCaughtSpecies(const Pokedex *pokedex, u16 species)
 BOOL Pokedex_HasSeenSpecies(const Pokedex *pokedex, u16 species)
 {
     CheckPokedexIntegrity(pokedex);
+#ifdef SDK_PORT
+    if (CommunityModernDex_IsSpecies(species)) {
+        CommunityModernDexEntry entry;
+        return CommunityModernDex_Read(pokedex->recordedLanguages, sizeof(pokedex->recordedLanguages),
+            species, &entry) == COMMUNITY_MODERN_DEX_VALID && entry.seen;
+    }
+#endif
 
     if (SpeciesInvalid(species)) {
         return FALSE;
@@ -1000,6 +1041,11 @@ u32 Pokedex_NumFormsSeen_Deoxys(const Pokedex *pokedexData)
 void Pokedex_Encounter(Pokedex *pokedexData, Pokemon *mon)
 {
     u16 species = Pokemon_GetValue(mon, MON_DATA_SPECIES, NULL);
+#ifdef SDK_PORT
+    if (Pokedex_TryRecordModern(pokedexData, mon, species, 0)) {
+        return;
+    }
+#endif
     u32 personality = Pokemon_GetValue(mon, MON_DATA_PERSONALITY, NULL);
     u32 gender = Pokemon_GetGender(mon);
 
@@ -1027,6 +1073,11 @@ void Pokedex_Encounter(Pokedex *pokedexData, Pokemon *mon)
 void Pokedex_Capture(Pokedex *pokedexData, Pokemon *mon)
 {
     u16 species = Pokemon_GetValue(mon, MON_DATA_SPECIES, NULL);
+#ifdef SDK_PORT
+    if (Pokedex_TryRecordModern(pokedexData, mon, species, 1)) {
+        return;
+    }
+#endif
     u32 language = Pokemon_GetValue(mon, MON_DATA_LANGUAGE, NULL);
     u32 personality = Pokemon_GetValue(mon, MON_DATA_PERSONALITY, NULL);
     u32 gender = Pokemon_GetGender(mon);
