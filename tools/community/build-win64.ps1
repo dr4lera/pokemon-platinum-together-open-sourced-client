@@ -4,7 +4,7 @@ $clientRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 Set-Location -LiteralPath $clientRoot
 if($Jobs -lt 1 -or $Jobs -gt 64){throw 'Jobs must be between 1 and 64.'}
 $env:PYTHONUTF8='1'
-foreach($name in @('python','git','gcc','g++','nasm','ninja','flex','bison','arm-none-eabi-gcc','arm-none-eabi-objcopy')){
+foreach($name in @('python','git','gcc','g++','nasm','ninja','flex','bison','bash','arm-none-eabi-gcc','arm-none-eabi-objcopy')){
     if(!(Get-Command $name -ErrorAction SilentlyContinue)){throw "Missing build dependency: $name. See docs/BUILD_COMMUNITY.md."}
 }
 $meson=Join-Path $clientRoot 'subprojects/meson-1.12.0/meson.py'

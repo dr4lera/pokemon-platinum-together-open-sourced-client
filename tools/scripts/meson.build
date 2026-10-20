@@ -1,7 +1,8 @@
 make_pl_poke_icon_py = find_program('make_pl_poke_icon.py', native: true)
 make_pl_pokegra_py = find_program('make_pl_pokegra.py', native: true)
 make_pl_otherpoke_py = find_program('make_pl_otherpoke.py', native: true)
-make_script_bin_sh = find_program('make_script_bin.sh', native: true)
+script_bash_exe = find_program('bash', native: true)
+make_script_bin_sh = meson.current_source_dir() / 'make_script_bin.sh'
 make_pl_growtbl_py = find_program('make_pl_growtbl.py', native: true)
 make_pokedex_enc_platinum_py = find_program('make_pokedex_enc_platinum.py', native: true)
 make_town_map_data_py = find_program('make_town_map_data.py', native: true)

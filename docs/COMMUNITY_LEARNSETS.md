@@ -44,3 +44,14 @@ No game assets or private reference fixtures are included. The NARC game adapter
 default-move and level-up integration compile in the complete Windows client;
 in-game verification remains pending. A modern record provider, move data/effects, sprites and
 species catalogs remain separate migration work.
+
+An optional offline reference check is available:
+
+```text
+python tools/community/check-reference-learnsets.py /path/to/your/Platinum.exe
+```
+
+It verifies the selected 0.1.7 artifact/table hashes, then compares all 65 native
+modern records with the actual C decoder. On 2026-10-20 all records matched,
+including their order: 11–23 entries per species, highest move ID 821. The game
+does not run and no reference fixtures or tables are written into the checkout.
