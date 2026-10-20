@@ -35,6 +35,11 @@ that the new loader would have called. The loader now owns and closes its archiv
 on every path, avoiding a change to the old helper's behavior. The final Windows
 client links with that fix.
 
+The published Linux rule workflow passes all three suites. The changed-source
+publication lint reported zero failures and four identifier warnings; every
+warned identifier already exists in the pinned public engine foundation. No new
+closed-reference decompiler identifiers or copied reference files were added.
+
 No original installation, running game or player save was modified for these
 checks. No native gameplay, full asset packaging, new-client networking, modern
 content, save compatibility or 1:1 Together parity is established by this record.

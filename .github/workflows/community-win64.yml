@@ -1,0 +1,48 @@
+name: Community Windows build
+on:
+  push:
+    branches: [community-client]
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-client:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.13'
+      - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            git flex bison
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-nasm
+            mingw-w64-ucrt-x86_64-arm-none-eabi-gcc
+            mingw-w64-ucrt-x86_64-SDL2
+            mingw-w64-ucrt-x86_64-enet
+            mingw-w64-ucrt-x86_64-libpng
+            mingw-w64-ucrt-x86_64-zlib
+            mingw-w64-ucrt-x86_64-pkgconf
+      - name: Compile source client without game installation or ROM
+        shell: pwsh
+        run: |
+          $env:PATH='C:\msys64\ucrt64\bin;C:\msys64\usr\bin;'+$env:PATH
+          ./tools/community/build-win64.ps1 -Jobs 4
+      - name: Check community rules
+        shell: pwsh
+        run: |
+          $env:PATH='C:\msys64\ucrt64\bin;C:\msys64\usr\bin;'+$env:PATH
+          python tests/run_community_rules.py
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+          python tests/run_community_learnsets.py
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+          gcc -std=c99 -Wall -Wextra -Werror -Iinclude tests/capture_rules_core_test.c -o build_win64/capture-rules.exe
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+          ./build_win64/capture-rules.exe
