@@ -212,7 +212,7 @@ struct BattleContext {
     int captureTarget;
     int captureBall;
     int captureActionTurn;
-    u32 captureActionsUsedMask;
+    unsigned captureActionsUsedMask;
     void *tmpData;
 
     u32 fieldConditionsMask;

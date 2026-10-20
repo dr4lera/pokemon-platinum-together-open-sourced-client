@@ -14,7 +14,7 @@ if(!(Test-Path -LiteralPath $meson)){
 }
 $mesonCommit=& git -C (Split-Path -Parent $meson) rev-parse HEAD
 if($mesonCommit -ne 'ab4508e6abe338a3bd2e6eb5da1d18b8cf55dc93'){throw 'Meson source revision differs from the pinned build.'}
-$arguments=@('setup',$BuildDirectory,'-Dbuild_target=win64','-Dskip_anim_scripts=true','--native-file=meson/native.ini','--cross-file=meson/cross_pcport_win64.ini')
+$arguments=@('setup',$BuildDirectory,'-Dbuild_target=win64','-Dskip_anim_scripts=false','--native-file=meson/native.ini','--cross-file=meson/cross_pcport_win64.ini')
 if(Test-Path -LiteralPath (Join-Path $BuildDirectory 'build.ninja')){$arguments+='--reconfigure'}
 & python $meson @arguments
 if($LASTEXITCODE -ne 0){throw 'Client configuration failed.'}

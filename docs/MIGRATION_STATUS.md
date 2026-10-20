@@ -20,11 +20,11 @@ prepared, unmodified copy of the supplied game.
 
 | System | Current evidence | Required before parity |
 | --- | --- | --- |
-| Sinnoh engine/platform | Public source foundation obtained | Build and run with user-supplied ROM assets |
-| World level caps | Own source clamps battle/Candy/DayCare EXP; portable C and config checks pass | Full client build/play, per-world rules and peer progression negotiation |
-| Traded Pokémon obedience | Own community build returns normal obedience regardless of OT; provenance helpers retained | Full client build/play and battle parity |
-| Ball eligibility | Own source shares wild-only, exactly-one-live-target checks between UI and execution; C core checks pass | Full client build/play and co-op integration |
-| Ball inventory | Own source requires successful debit, rejects duplicate actor/turn actions, binds throw authorization and target | Full client build/play, per-player co-op inventory and failure recovery |
+| Sinnoh engine/platform | Windows x64 source executable compiles and links | Run with user-supplied ROM assets and verify runtime behavior |
+| World level caps | Own source clamps battle/Candy/DayCare EXP; C/config checks and full client compilation pass | Client play, per-world rules and peer progression negotiation |
+| Traded Pokémon obedience | Community executable compiles with normal obedience regardless of OT; provenance helpers retained | Client play and battle parity |
+| Ball eligibility | Shared wild-only, exactly-one-live-target UI/execution checks; C checks and full compilation pass | Client play and co-op integration |
+| Ball inventory | Successful debit required; duplicate actor/turn actions rejected; authorization and target bound; full compilation passes | Client play, per-player co-op inventory and failure recovery |
 | Battle caught marker | Reference native caught query → HUD → draw inspected | Preserve known/caught distinction and modern/trade registration |
 | Accounts, friends, Inverna | Our backend implemented and tested | Own native client protocol integration |
 | Co-op/relay, battles, trades | User-confirmed on reference clients | Own client implementation and two-client parity checks |
@@ -43,6 +43,9 @@ throw, and never duplicate inventory through queued actions. Show the caught-bal
 HUD marker for caught species, including received trades; merely seen is distinct.
 
 ## Release gate
+
+See [the source validation record](VALIDATION.md) for the precise build and test
+boundary. A successfully linked executable is an early migration milestone.
 
 Launcher/server dev12 releases remain paused during the client migration. Source
 milestones must be labeled accurately. A source checkout, successful build, or

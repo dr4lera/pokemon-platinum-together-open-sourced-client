@@ -16,8 +16,8 @@ recorded source revision and checks out public dependencies at pinned commits.
 ```
 
 The native executable is `build_win64/main.exe`. The first source build also
-generates resource headers. `PYTHONUTF8=1` is required on Windows and is set by
-the script. The old upstream `make win64` route downloads an ARM matching
+generates resource headers. Animation-script generation remains enabled.
+`PYTHONUTF8=1` is required on Windows and is set by the script. The old upstream `make win64` route downloads an ARM matching
 toolchain that this native build does not require; use the community script.
 
 Run rule checks separately, without a game installation or ROM:

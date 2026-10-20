@@ -20,7 +20,7 @@ Implemented source rules:
 
 [Build](docs/BUILD_COMMUNITY.md) · [Migration matrix](docs/MIGRATION_STATUS.md) ·
 [Level caps](docs/COMMUNITY_LEVEL_CAPS.md) · [Provenance](THIRD_PARTY_NOTICES.md) ·
-[Upstream documentation](docs/UPSTREAM_README.md)
+[Validation](docs/VALIDATION.md) · [Upstream documentation](docs/UPSTREAM_README.md)
 
 The client is built from source. Users supply their own compatible ROM/assets.
 No installed Together executable, private decompilation, saves or account keys are
