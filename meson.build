@@ -435,6 +435,13 @@ if (build_target == 'win64')
 ws2_32_lib = meson.get_compiler('c').find_library('ws2_32')
 
 ws2_32_dep = declare_dependency(dependencies: [ws2_32_lib])
+community_online_deps = [
+    dependency('libcurl'),
+    dependency('libcrypto'),
+    dependency('threads'),
+    rapidjson_dep,
+    meson.get_compiler('cpp').find_library('crypt32'),
+]
 
 main = executable('main',
     sources: [
@@ -464,6 +471,7 @@ main = executable('main',
         nitrodwc_dep,
         libvct_dep,
         ws2_32_dep,
+        community_online_deps,
     ],
     link_with: [
         libspl,

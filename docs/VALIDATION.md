@@ -50,3 +50,33 @@ No original installation, running game or player save was modified for these
 checks. No native gameplay, full asset packaging, new-client networking, modern
 content, save compatibility or 1:1 Together parity is established by this record.
 User-confirmed reference-client battles and trades are separate evidence.
+
+## Native transport and bounded modern content (2026-10-20)
+
+The full Windows x64 client links after the native account/party GUI, signed
+community link, semantic WM provider, V3 numeric catalog, evolution consumers,
+six Fairy moves, emitter mode2 and move-menu palette additions. The actual
+source fixtures passed for catalog parsing (including optional private pinned
+reference validation), species loaders, evolution ordering, move-table bounds,
+modern move effects/type chart/text encoder/archive generation, emitter behavior,
+private-asset merge invariants and fresh-profile QA guards.
+
+The real backend passes 58 tests. The native online fixture passes twelve
+scenarios against it, including profile/TLS/party/chat/link/cancellation behavior.
+The provider fixture passes four scenarios through actual Service/Core/provider
+code and the runtime provider table. It checks discovery, dynamic parent/AID
+assignment, two-way 512-byte delivery, callback-buffer ownership through WM
+acknowledgment, reconnect identities and discarding queued old-generation data.
+These are transport fixtures; they do not establish a completed native trade.
+
+A private own-client runtime reached the new-game introduction using emulated
+buttons and its own framebuffer capture. A fresh in-memory native battle scene
+then exposed a missing Fairy move-menu palette at frame565. Its bounded accessor
+and actual-consumer regression pass. A subsequent run exposed a compressed NCLR
+whose expanded palette size exceeds its stored sparse bytes. That loader case
+is under repair; no completed native battle is claimed here. All scenes use
+separate fresh profiles and no OS keyboard/mouse injection.
+
+No full species roster, modern ability catalog, Together world/co-op behavior,
+save migration or 1:1 parity is established. These remain release acceptance
+items; private assets and reference-derived caches are not part of the source.

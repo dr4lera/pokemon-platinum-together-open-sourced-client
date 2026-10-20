@@ -12,6 +12,9 @@
 int CommunityRules_CurrentLevelCap(void)
 {
     SaveData *saveData = SaveData_Ptr();
+    if (saveData == NULL) {
+        return CommunityRules_LevelCapForBadges(0, SIM_Config_prj_GetConfig()->worldLevelCaps, 0);
+    }
     return CommunityRules_LevelCapForBadges(
         TrainerInfo_BadgeCount(SaveData_GetTrainerInfo(saveData)),
         SIM_Config_prj_GetConfig()->worldLevelCaps,

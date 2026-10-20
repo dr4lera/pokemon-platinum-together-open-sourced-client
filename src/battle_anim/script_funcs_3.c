@@ -3332,7 +3332,8 @@ static void EmitterAnimationContext_Init(BattleAnimSystem *system, EmitterAnimat
     ctx->emitter = BattleAnimSystem_GetEmitter(system, ctx->emitterID);
     ctx->particleSys = BattleAnimSystem_GetCurrentParticleSystem(system);
 
-    if (ctx->mode == EMITTER_ANIMATION_MODE_ATK_TO_DEF) {
+    // Mode 2 keeps these battler identities but starts linear motion at the emitter.
+    if (ctx->mode == EMITTER_ANIMATION_MODE_ATK_TO_DEF || ctx->mode == 2) {
         ctx->startBattler = BattleAnimSystem_GetAttacker(system);
         ctx->endBattler = BattleAnimSystem_GetDefender(system);
     } else if (ctx->mode == EMITTER_ANIMATION_MODE_DEF_TO_ATK) {
@@ -3411,6 +3412,14 @@ void BattleAnimScriptFunc_MoveEmitterA2BLinear(BattleAnimSystem *system)
     VecFx32 startPos, endPos;
     BattleAnimUtil_GetBattlerWorldPos_Normal(system, ctx->startBattler, &startPos);
     BattleAnimUtil_GetBattlerWorldPos_Normal(system, ctx->endBattler, &endPos);
+
+    if (ctx->mode == 2 && ctx->emitter != NULL) {
+        // SetPosX/Y add this resource origin back to interpolated positions.
+        // Remove it once when continuing from an already positioned emitter.
+        const VecFx32 *origin = &ctx->emitter->resource->header->emitterBasePos;
+        startPos.x = ctx->emitter->position.x - origin->x;
+        startPos.y = ctx->emitter->position.y - origin->y;
+    }
 
     PosLerpContext_Init(
         &ctx->transforms[0],

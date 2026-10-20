@@ -39,6 +39,7 @@
 #include "pokedex_data_index.h"
 #include "pokedex_heightweight.h"
 #include "pokemon.h"
+#include "port/community_modern_rules.h"
 #include "string_gf.h"
 #include "trainer_data.h"
 #include "trainer_info.h"
@@ -2516,6 +2517,148 @@ static const u8 sTypeMatchupMultipliers[][3] = {
     { 0xFF, 0xFF, TYPE_MULTI_IMMUNE },
 };
 
+// Original base table above; modern rules retain order and add the inspected deltas.
+static const u8 sModernTypeMatchupMultipliers[][3] = {
+    { TYPE_NORMAL, TYPE_ROCK, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_NORMAL, TYPE_STEEL, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_FIRE, TYPE_FIRE, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_FIRE, TYPE_WATER, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_FIRE, TYPE_GRASS, TYPE_MULTI_SUPER_EFF },
+    { TYPE_FIRE, TYPE_ICE, TYPE_MULTI_SUPER_EFF },
+    { TYPE_FIRE, TYPE_BUG, TYPE_MULTI_SUPER_EFF },
+    { TYPE_FIRE, TYPE_ROCK, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_FIRE, TYPE_DRAGON, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_FIRE, TYPE_STEEL, TYPE_MULTI_SUPER_EFF },
+    { TYPE_WATER, TYPE_FIRE, TYPE_MULTI_SUPER_EFF },
+    { TYPE_WATER, TYPE_WATER, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_WATER, TYPE_GRASS, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_WATER, TYPE_GROUND, TYPE_MULTI_SUPER_EFF },
+    { TYPE_WATER, TYPE_ROCK, TYPE_MULTI_SUPER_EFF },
+    { TYPE_WATER, TYPE_DRAGON, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_ELECTRIC, TYPE_WATER, TYPE_MULTI_SUPER_EFF },
+    { TYPE_ELECTRIC, TYPE_ELECTRIC, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_ELECTRIC, TYPE_GRASS, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_ELECTRIC, TYPE_GROUND, TYPE_MULTI_IMMUNE },
+    { TYPE_ELECTRIC, TYPE_FLYING, TYPE_MULTI_SUPER_EFF },
+    { TYPE_ELECTRIC, TYPE_DRAGON, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_GRASS, TYPE_FIRE, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_GRASS, TYPE_WATER, TYPE_MULTI_SUPER_EFF },
+    { TYPE_GRASS, TYPE_GRASS, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_GRASS, TYPE_POISON, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_GRASS, TYPE_GROUND, TYPE_MULTI_SUPER_EFF },
+    { TYPE_GRASS, TYPE_FLYING, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_GRASS, TYPE_BUG, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_GRASS, TYPE_ROCK, TYPE_MULTI_SUPER_EFF },
+    { TYPE_GRASS, TYPE_DRAGON, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_GRASS, TYPE_STEEL, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_ICE, TYPE_WATER, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_ICE, TYPE_GRASS, TYPE_MULTI_SUPER_EFF },
+    { TYPE_ICE, TYPE_ICE, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_ICE, TYPE_GROUND, TYPE_MULTI_SUPER_EFF },
+    { TYPE_ICE, TYPE_FLYING, TYPE_MULTI_SUPER_EFF },
+    { TYPE_ICE, TYPE_DRAGON, TYPE_MULTI_SUPER_EFF },
+    { TYPE_ICE, TYPE_STEEL, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_ICE, TYPE_FIRE, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_FIGHTING, TYPE_NORMAL, TYPE_MULTI_SUPER_EFF },
+    { TYPE_FIGHTING, TYPE_ICE, TYPE_MULTI_SUPER_EFF },
+    { TYPE_FIGHTING, TYPE_POISON, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_FIGHTING, TYPE_FLYING, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_FIGHTING, TYPE_PSYCHIC, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_FIGHTING, TYPE_BUG, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_FIGHTING, TYPE_ROCK, TYPE_MULTI_SUPER_EFF },
+    { TYPE_FIGHTING, TYPE_DARK, TYPE_MULTI_SUPER_EFF },
+    { TYPE_FIGHTING, TYPE_STEEL, TYPE_MULTI_SUPER_EFF },
+    { TYPE_POISON, TYPE_GRASS, TYPE_MULTI_SUPER_EFF },
+    { TYPE_POISON, TYPE_POISON, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_POISON, TYPE_GROUND, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_POISON, TYPE_ROCK, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_POISON, TYPE_GHOST, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_POISON, TYPE_STEEL, TYPE_MULTI_IMMUNE },
+    { TYPE_GROUND, TYPE_FIRE, TYPE_MULTI_SUPER_EFF },
+    { TYPE_GROUND, TYPE_ELECTRIC, TYPE_MULTI_SUPER_EFF },
+    { TYPE_GROUND, TYPE_GRASS, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_GROUND, TYPE_POISON, TYPE_MULTI_SUPER_EFF },
+    { TYPE_GROUND, TYPE_FLYING, TYPE_MULTI_IMMUNE },
+    { TYPE_GROUND, TYPE_BUG, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_GROUND, TYPE_ROCK, TYPE_MULTI_SUPER_EFF },
+    { TYPE_GROUND, TYPE_STEEL, TYPE_MULTI_SUPER_EFF },
+    { TYPE_FLYING, TYPE_ELECTRIC, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_FLYING, TYPE_GRASS, TYPE_MULTI_SUPER_EFF },
+    { TYPE_FLYING, TYPE_FIGHTING, TYPE_MULTI_SUPER_EFF },
+    { TYPE_FLYING, TYPE_BUG, TYPE_MULTI_SUPER_EFF },
+    { TYPE_FLYING, TYPE_ROCK, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_FLYING, TYPE_STEEL, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_PSYCHIC, TYPE_FIGHTING, TYPE_MULTI_SUPER_EFF },
+    { TYPE_PSYCHIC, TYPE_POISON, TYPE_MULTI_SUPER_EFF },
+    { TYPE_PSYCHIC, TYPE_PSYCHIC, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_PSYCHIC, TYPE_DARK, TYPE_MULTI_IMMUNE },
+    { TYPE_PSYCHIC, TYPE_STEEL, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_BUG, TYPE_FIRE, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_BUG, TYPE_GRASS, TYPE_MULTI_SUPER_EFF },
+    { TYPE_BUG, TYPE_FIGHTING, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_BUG, TYPE_POISON, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_BUG, TYPE_FLYING, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_BUG, TYPE_PSYCHIC, TYPE_MULTI_SUPER_EFF },
+    { TYPE_BUG, TYPE_GHOST, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_BUG, TYPE_DARK, TYPE_MULTI_SUPER_EFF },
+    { TYPE_BUG, TYPE_STEEL, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_ROCK, TYPE_FIRE, TYPE_MULTI_SUPER_EFF },
+    { TYPE_ROCK, TYPE_ICE, TYPE_MULTI_SUPER_EFF },
+    { TYPE_ROCK, TYPE_FIGHTING, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_ROCK, TYPE_GROUND, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_ROCK, TYPE_FLYING, TYPE_MULTI_SUPER_EFF },
+    { TYPE_ROCK, TYPE_BUG, TYPE_MULTI_SUPER_EFF },
+    { TYPE_ROCK, TYPE_STEEL, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_GHOST, TYPE_NORMAL, TYPE_MULTI_IMMUNE },
+    { TYPE_GHOST, TYPE_PSYCHIC, TYPE_MULTI_SUPER_EFF },
+    { TYPE_GHOST, TYPE_DARK, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_GHOST, TYPE_GHOST, TYPE_MULTI_SUPER_EFF },
+    { TYPE_DRAGON, TYPE_DRAGON, TYPE_MULTI_SUPER_EFF },
+    { TYPE_DRAGON, TYPE_STEEL, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_DARK, TYPE_FIGHTING, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_DARK, TYPE_PSYCHIC, TYPE_MULTI_SUPER_EFF },
+    { TYPE_DARK, TYPE_GHOST, TYPE_MULTI_SUPER_EFF },
+    { TYPE_DARK, TYPE_DARK, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_STEEL, TYPE_FIRE, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_STEEL, TYPE_WATER, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_STEEL, TYPE_ELECTRIC, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_STEEL, TYPE_ICE, TYPE_MULTI_SUPER_EFF },
+    { TYPE_STEEL, TYPE_ROCK, TYPE_MULTI_SUPER_EFF },
+    { TYPE_STEEL, TYPE_STEEL, TYPE_MULTI_NOT_VERY_EFF },
+
+    { TYPE_FAIRY, TYPE_FIGHTING, TYPE_MULTI_SUPER_EFF },
+    { TYPE_FAIRY, TYPE_DRAGON, TYPE_MULTI_SUPER_EFF },
+    { TYPE_FAIRY, TYPE_DARK, TYPE_MULTI_SUPER_EFF },
+    { TYPE_FAIRY, TYPE_FIRE, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_FAIRY, TYPE_POISON, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_FAIRY, TYPE_STEEL, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_FIGHTING, TYPE_FAIRY, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_BUG, TYPE_FAIRY, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_DARK, TYPE_FAIRY, TYPE_MULTI_NOT_VERY_EFF },
+    { TYPE_POISON, TYPE_FAIRY, TYPE_MULTI_SUPER_EFF },
+    { TYPE_STEEL, TYPE_FAIRY, TYPE_MULTI_SUPER_EFF },
+    { TYPE_DRAGON, TYPE_FAIRY, TYPE_MULTI_IMMUNE },
+
+    { 0xFE, 0xFE, TYPE_MULTI_IMMUNE },
+
+    // These values are separated from the remainder of the table to support
+    // the Foresight effect, which removes these immunities from consideration.
+    { TYPE_NORMAL, TYPE_GHOST, TYPE_MULTI_IMMUNE },
+    { TYPE_FIGHTING, TYPE_GHOST, TYPE_MULTI_IMMUNE },
+
+    { 0xFF, 0xFF, TYPE_MULTI_IMMUNE },
+};
+
+static const u8 (*TypeMatchupTable(void))[3]
+{
+    return CommunityModernRules_Enabled() ? sModernTypeMatchupMultipliers : sTypeMatchupMultipliers;
+}
+
+static int TypeMatchupCount(void)
+{
+    return CommunityModernRules_Enabled() ? NELEMS(sModernTypeMatchupMultipliers) : NELEMS(sTypeMatchupMultipliers);
+}
+
 /**
  * @brief Check if the basic type multiplier applies.
  *
@@ -2532,25 +2675,25 @@ static BOOL BasicTypeMulApplies(BattleContext *battleCtx, int attacker, int defe
     BOOL result = TRUE;
 
     if ((itemEffect == HOLD_EFFECT_SPEED_DOWN_GROUNDED || (battleCtx->battleMons[defender].moveEffectsMask & MOVE_EFFECT_INGRAIN))
-        && sTypeMatchupMultipliers[chartEntry][1] == TYPE_FLYING
-        && sTypeMatchupMultipliers[chartEntry][2] == TYPE_MULTI_IMMUNE) {
+        && TypeMatchupTable()[chartEntry][1] == TYPE_FLYING
+        && TypeMatchupTable()[chartEntry][2] == TYPE_MULTI_IMMUNE) {
         result = FALSE;
     }
 
     if (battleCtx->turnFlags[defender].roosting
-        && sTypeMatchupMultipliers[chartEntry][1] == TYPE_FLYING) {
+        && TypeMatchupTable()[chartEntry][1] == TYPE_FLYING) {
         result = FALSE;
     }
 
     if ((battleCtx->fieldConditionsMask & FIELD_CONDITION_GRAVITY)
-        && sTypeMatchupMultipliers[chartEntry][1] == TYPE_FLYING
-        && sTypeMatchupMultipliers[chartEntry][2] == TYPE_MULTI_IMMUNE) {
+        && TypeMatchupTable()[chartEntry][1] == TYPE_FLYING
+        && TypeMatchupTable()[chartEntry][2] == TYPE_MULTI_IMMUNE) {
         result = FALSE;
     }
 
     if ((battleCtx->battleMons[defender].moveEffectsMask & MOVE_EFFECT_MIRACLE_EYE)
-        && sTypeMatchupMultipliers[chartEntry][1] == TYPE_DARK
-        && sTypeMatchupMultipliers[chartEntry][2] == TYPE_MULTI_IMMUNE) {
+        && TypeMatchupTable()[chartEntry][1] == TYPE_DARK
+        && TypeMatchupTable()[chartEntry][2] == TYPE_MULTI_IMMUNE) {
         result = FALSE;
     }
 
@@ -2609,8 +2752,8 @@ int BattleSystem_ApplyTypeChart(BattleSystem *battleSys, BattleContext *battleCt
     } else {
         chartEntry = 0;
 
-        while (sTypeMatchupMultipliers[chartEntry][0] != 0xFF) {
-            if (sTypeMatchupMultipliers[chartEntry][0] == 0xFE) {
+        while (TypeMatchupTable()[chartEntry][0] != 0xFF) {
+            if (TypeMatchupTable()[chartEntry][0] == 0xFE) {
                 // The Ghost-type immunities are listed separately and ignored as a batch
                 if ((battleCtx->battleMons[defender].statusVolatile & VOLATILE_CONDITION_FORESIGHT)
                     || Battler_Ability(battleCtx, attacker) == ABILITY_SCRAPPY) {
@@ -2621,22 +2764,22 @@ int BattleSystem_ApplyTypeChart(BattleSystem *battleSys, BattleContext *battleCt
                 }
             }
 
-            if (sTypeMatchupMultipliers[chartEntry][0] == moveType) {
-                if (sTypeMatchupMultipliers[chartEntry][1] == BattleMon_Get(battleCtx, defender, BATTLEMON_TYPE_1, NULL)
+            if (TypeMatchupTable()[chartEntry][0] == moveType) {
+                if (TypeMatchupTable()[chartEntry][1] == BattleMon_Get(battleCtx, defender, BATTLEMON_TYPE_1, NULL)
                     && BasicTypeMulApplies(battleCtx, attacker, defender, chartEntry) == TRUE) {
-                    damage = ApplyTypeMultiplier(battleCtx, attacker, sTypeMatchupMultipliers[chartEntry][2], damage, movePower, moveStatusMask);
+                    damage = ApplyTypeMultiplier(battleCtx, attacker, TypeMatchupTable()[chartEntry][2], damage, movePower, moveStatusMask);
 
-                    if (sTypeMatchupMultipliers[chartEntry][2] == TYPE_MULTI_SUPER_EFF) {
+                    if (TypeMatchupTable()[chartEntry][2] == TYPE_MULTI_SUPER_EFF) {
                         totalMul *= 2;
                     }
                 }
 
-                if (sTypeMatchupMultipliers[chartEntry][1] == BattleMon_Get(battleCtx, defender, BATTLEMON_TYPE_2, NULL)
+                if (TypeMatchupTable()[chartEntry][1] == BattleMon_Get(battleCtx, defender, BATTLEMON_TYPE_2, NULL)
                     && BattleMon_Get(battleCtx, defender, BATTLEMON_TYPE_1, NULL) != BattleMon_Get(battleCtx, defender, BATTLEMON_TYPE_2, NULL)
                     && BasicTypeMulApplies(battleCtx, attacker, defender, chartEntry) == TRUE) {
-                    damage = ApplyTypeMultiplier(battleCtx, attacker, sTypeMatchupMultipliers[chartEntry][2], damage, movePower, moveStatusMask);
+                    damage = ApplyTypeMultiplier(battleCtx, attacker, TypeMatchupTable()[chartEntry][2], damage, movePower, moveStatusMask);
 
-                    if (sTypeMatchupMultipliers[chartEntry][2] == TYPE_MULTI_SUPER_EFF) {
+                    if (TypeMatchupTable()[chartEntry][2] == TYPE_MULTI_SUPER_EFF) {
                         totalMul *= 2;
                     }
                 }
@@ -2704,8 +2847,8 @@ void BattleSystem_CalcEffectiveness(BattleContext *battleCtx, int move, int inTy
     } else {
         chartEntry = 0;
 
-        while (sTypeMatchupMultipliers[chartEntry][0] != 0xFF) {
-            if (sTypeMatchupMultipliers[chartEntry][0] == 0xFE) {
+        while (TypeMatchupTable()[chartEntry][0] != 0xFF) {
+            if (TypeMatchupTable()[chartEntry][0] == 0xFE) {
                 if (attackerAbility == ABILITY_SCRAPPY) {
                     break;
                 } else {
@@ -2714,16 +2857,16 @@ void BattleSystem_CalcEffectiveness(BattleContext *battleCtx, int move, int inTy
                 }
             }
 
-            if (sTypeMatchupMultipliers[chartEntry][0] == moveType) {
-                if (sTypeMatchupMultipliers[chartEntry][1] == defenderType1
+            if (TypeMatchupTable()[chartEntry][0] == moveType) {
+                if (TypeMatchupTable()[chartEntry][1] == defenderType1
                     && NoImmunityOverrides(battleCtx, defenderItemEffect, chartEntry) == TRUE) {
-                    UpateMoveStatusForTypeMul(sTypeMatchupMultipliers[chartEntry][2], moveStatusMask);
+                    UpateMoveStatusForTypeMul(TypeMatchupTable()[chartEntry][2], moveStatusMask);
                 }
 
-                if (sTypeMatchupMultipliers[chartEntry][1] == defenderType2
+                if (TypeMatchupTable()[chartEntry][1] == defenderType2
                     && defenderType1 != defenderType2
                     && NoImmunityOverrides(battleCtx, defenderItemEffect, chartEntry) == TRUE) {
-                    UpateMoveStatusForTypeMul(sTypeMatchupMultipliers[chartEntry][2], moveStatusMask);
+                    UpateMoveStatusForTypeMul(TypeMatchupTable()[chartEntry][2], moveStatusMask);
                 }
             }
 
@@ -2758,14 +2901,14 @@ static BOOL NoImmunityOverrides(BattleContext *battleCtx, int itemEffect, int ch
     BOOL result = TRUE;
 
     if (itemEffect == HOLD_EFFECT_SPEED_DOWN_GROUNDED
-        && sTypeMatchupMultipliers[chartEntry][1] == TYPE_FLYING
-        && sTypeMatchupMultipliers[chartEntry][2] == TYPE_MULTI_IMMUNE) {
+        && TypeMatchupTable()[chartEntry][1] == TYPE_FLYING
+        && TypeMatchupTable()[chartEntry][2] == TYPE_MULTI_IMMUNE) {
         result = FALSE;
     }
 
     if ((battleCtx->fieldConditionsMask & FIELD_CONDITION_GRAVITY)
-        && sTypeMatchupMultipliers[chartEntry][1] == TYPE_FLYING
-        && sTypeMatchupMultipliers[chartEntry][2] == TYPE_MULTI_IMMUNE) {
+        && TypeMatchupTable()[chartEntry][1] == TYPE_FLYING
+        && TypeMatchupTable()[chartEntry][2] == TYPE_MULTI_IMMUNE) {
         result = FALSE;
     }
 
@@ -2994,14 +3137,14 @@ BOOL Move_IsMultiTurn(BattleContext *battleCtx, int move)
 BOOL BattleSystem_TypeMatchup(BattleSystem *battleSys, int idx, u8 *moveType, u8 *vsType, u8 *multi)
 {
     BOOL result = TRUE;
-    if (idx >= NELEMS(sTypeMatchupMultipliers)) {
-        idx = BattleSystem_RandNext(battleSys) % NELEMS(sTypeMatchupMultipliers);
+    if (idx >= TypeMatchupCount()) {
+        idx = BattleSystem_RandNext(battleSys) % TypeMatchupCount();
         result = FALSE;
     }
 
-    *moveType = sTypeMatchupMultipliers[idx][0];
-    *vsType = sTypeMatchupMultipliers[idx][1];
-    *multi = sTypeMatchupMultipliers[idx][2];
+    *moveType = TypeMatchupTable()[idx][0];
+    *vsType = TypeMatchupTable()[idx][1];
+    *multi = TypeMatchupTable()[idx][2];
 
     return result;
 }
@@ -3011,15 +3154,15 @@ int BattleSystem_TypeMatchupMultiplier(u8 attackingType, u8 defendingType1, u8 d
     int i = 0;
     int mul = 40;
 
-    while (sTypeMatchupMultipliers[i][0] != 0xFF) {
-        if (sTypeMatchupMultipliers[i][0] == attackingType) {
-            if (sTypeMatchupMultipliers[i][1] == defendingType1) {
-                mul = mul * sTypeMatchupMultipliers[i][2] / 10;
+    while (TypeMatchupTable()[i][0] != 0xFF) {
+        if (TypeMatchupTable()[i][0] == attackingType) {
+            if (TypeMatchupTable()[i][1] == defendingType1) {
+                mul = mul * TypeMatchupTable()[i][2] / 10;
             }
 
-            if (sTypeMatchupMultipliers[i][1] == defendingType2
+            if (TypeMatchupTable()[i][1] == defendingType2
                 && defendingType1 != defendingType2) {
-                mul = mul * sTypeMatchupMultipliers[i][2] / 10;
+                mul = mul * TypeMatchupTable()[i][2] / 10;
             }
         }
 
@@ -3483,6 +3626,7 @@ static u16 sSoundMoves[] = {
     MOVE_HYPER_VOICE,
     MOVE_BUG_BUZZ,
     MOVE_CHATTER,
+    MOVE_DISARMING_VOICE,
 };
 
 int BattleSystem_TriggerImmunityAbility(BattleContext *battleCtx, int attacker, int defender)

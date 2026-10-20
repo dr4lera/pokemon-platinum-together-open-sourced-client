@@ -6,7 +6,8 @@ Metrowerks, an original Nintendo SDK, or changes to the installed game. Native
 Together behavior is a reconstruction target, not a completed feature claim.
 
 Install a normal UCRT64 GNU development environment with Python 3, Git, GCC/G++,
-NASM, Ninja, Flex, Bison, GNU ARM GCC/binutils, SDL2, ENet, zlib, libpng and
+NASM, Ninja, Flex, Bison, GNU ARM GCC/binutils, SDL2, ENet, zlib, libpng, libcurl,
+OpenSSL and
 pkg-config. ARM tools compile data scripts, not a proprietary SDK. Add their bin
 directories to PATH. The supplied Windows build script uses Meson 1.12.0 at the
 recorded source revision and checks out public dependencies at pinned commits.
@@ -24,6 +25,16 @@ Run rule checks separately, without a game installation or ROM:
 
 ```powershell
 python tests/run_community_rules.py
+python tests/run_community_learnsets.py
+python tests/run_community_catalog.py
+python tests/run_community_asset_overlay.py
+python tests/run_community_move_table.py
+python tests/run_community_species_loaders.py
+python tests/run_community_evolutions.py
+python tests/run_community_wireless.py
+python tests/run_community_wireless_core.py
+python tests/run_community_modern_assets.py
+python tests/run_community_qa_guard.py
 gcc -std=c99 -Wall -Wextra -Werror -Iinclude tests/capture_rules_core_test.c -o build_win64/capture_rules_core_test.exe
 .\build_win64\capture_rules_core_test.exe
 ```
@@ -38,3 +49,14 @@ Do not publish generated resources, original game binaries, ROMs, account keys,
 saves, or private reverse-engineering references. Build and binary release
 packaging are separate; the inherited asset-copy packaging scripts are not a
 community release allowlist. Release publication remains paused during migration.
+
+`tools/community/prepare-private-runtime.py` prepares a new directory outside
+the checkout from declared source-build resources and resolved runtime DLLs.
+It refuses existing output and copies no installed game or player profile.
+This is an isolated development aid, not a release packager. Use the explicit
+private asset/catalog tools only for their documented reviewed resource subsets.
+
+Native online and actual wireless-provider fixtures are documented separately.
+The Windows workflow builds the full client, then runs these against pinned
+backend source with fresh temporary profiles. No ROM or reference installation
+is required by that workflow.

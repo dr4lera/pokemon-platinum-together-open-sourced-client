@@ -272,6 +272,8 @@ pokeplatinum_c = files(
     'simple3d.c',
     'pokemon.c',
     'port/community_learnset.c',
+    'port/community_catalog.c',
+    'port/community_modern_rules.c',
     'trainer_data.c',
     'pc_boxes.c',
     'pokemon_icon.c',
@@ -1020,6 +1022,7 @@ pokeplatinum_c += files(
     'port/charcode_convert.c',
     'port/community_rules.c',
     'port/community_rules_game.c',
+    'port/community_qa.c',
     'port/debug_field.c',
     'port/sim_config_prj.c',
     'port/sim_gui_prj.cpp',
@@ -1036,6 +1039,14 @@ pokeplatinum_c += files(
 if(build_target == 'linux')
 pokeplatinum_c += files(
     'port/sim_icon.cpp'
+)
+endif
+if(build_target == 'win64')
+pokeplatinum_c += files(
+    'port/community_online.cpp',
+    'port/community_wireless_core.cpp',
+    'port/community_wireless.cpp',
+    'port/gui_community_online.cpp',
 )
 endif
 endif

@@ -1,0 +1,27 @@
+{
+    "name": "Moonblast",
+    "description": [
+        "A Fairy-type blast may\n",
+        "lower the target’s\n",
+        "Sp. Atk by one stage."
+    ],
+    "class": "CLASS_SPECIAL",
+    "type": "TYPE_FAIRY",
+    "power": 95,
+    "accuracy": 100,
+    "pp": 15,
+    "effect": {
+        "type": "BATTLE_EFFECT_LOWER_SP_ATK_HIT",
+        "chance": 30
+    },
+    "range": "RANGE_SINGLE_TARGET",
+    "priority": 0,
+    "flags": [
+        "MOVE_FLAG_CAN_PROTECT",
+        "MOVE_FLAG_CAN_MIRROR_MOVE"
+    ],
+    "contest": {
+        "effect": "CONTEST_EFFECT_MAX_VOLTAGE_ADVANTAGE",
+        "type": "CONTEST_TYPE_BEAUTY"
+    }
+}

@@ -10,6 +10,16 @@ not claim the original game or upstream engine was authored here.
 The libntr SDK replacements and their sibling libraries retain their own notices;
 libntr is MIT, copyright 2026 cybervisi0n. Meson, SDL2, ENet, ImGui, zlib, libpng,
 RapidJSON, yyjson, metang, GNU tools and other dependencies retain their licenses.
+The selected libntr runtime is maintained in the user's
+[community fork](https://github.com/dr4lera/pokemon-platinum-together-open-sourced-runtime),
+based on upstream `1555d911ac80c0190ac1c321f99f1323de8b3c09`. Its new resource
+resolver remains MIT. Native online support also uses libcurl and OpenSSL under
+their respective licenses and Windows DPAPI for local account-key protection.
+The selected libntrsystem implementation is maintained in the
+[community system fork](https://github.com/dr4lera/pokemon-platinum-together-open-sourced-runtime-system),
+based on upstream `cd778c9d5e45869f8ecb8245b316ac20ea576958`. Preserve its existing
+notices. Its upstream checkout contains no repository-wide LICENSE file; this
+project does not represent the whole system library as MIT or relicense it.
 When distributing binaries, collect the notices from the exact pinned sources
 and bundled runtime versions; a source checkout is not a finished release package.
 

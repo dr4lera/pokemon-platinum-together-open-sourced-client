@@ -54,6 +54,7 @@
 #include "party.h"
 #include "pc_boxes.h"
 #include "pokemon.h"
+#include "port/community_modern_rules.h"
 #include "pokemon_icon.h"
 #include "pokemon_sprite.h"
 #ifdef SDK_PORT
@@ -4556,7 +4557,8 @@ static BOOL BtlCmd_Metronome(BattleSystem *battleSys, BattleContext *battleCtx)
 
     while (TRUE) {
         int i;
-        u16 move = (BattleSystem_RandNext(battleSys) % NUM_VALID_MOVES) + 1;
+        int moveCount = CommunityModernRules_Enabled() ? NUM_VALID_MOVES : MOVE_SHADOW_FORCE;
+        u16 move = (BattleSystem_RandNext(battleSys) % moveCount) + 1;
 
         // Do not try to invoke a move that we already know.
         for (i = 0; i < LEARNED_MOVES_MAX; i++) {

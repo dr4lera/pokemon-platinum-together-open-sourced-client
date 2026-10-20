@@ -1170,13 +1170,13 @@ void PokemonSummaryScreen_UpdateTypeIcons(PokemonSummaryScreen *summaryScreen)
                 continue;
             }
 
-            SetTypeIcon(summaryScreen, SUMMARY_MOVE_TYPE_ICON_SPRITE_START + i, 5 + i, MoveTable_LoadParam(summaryScreen->monData.moves[i], MOVEATTRIBUTE_CONTEST_TYPE) + 18);
+            SetTypeIcon(summaryScreen, SUMMARY_MOVE_TYPE_ICON_SPRITE_START + i, 5 + i, MoveTable_LoadParam(summaryScreen->monData.moves[i], MOVEATTRIBUTE_CONTEST_TYPE) + NUM_POKEMON_TYPES);
             Sprite_SetDrawFlag2(summaryScreen->sprites[SUMMARY_MOVE_TYPE_ICON_SPRITE_START + i], 1);
             Sprite_SetPositionXY(summaryScreen->sprites[SUMMARY_MOVE_TYPE_ICON_SPRITE_START + i], MOVE_TYPE_ICON_X, MOVE_TYPE_ICON_BASE_Y + i * PIXELS_BETWEEN_MOVES);
         }
 
         if (summaryScreen->data->move != MOVE_NONE) {
-            SetTypeIcon(summaryScreen, SUMMARY_SPRITE_MOVE_TYPE_ICON_5, 5 + 4, MoveTable_LoadParam(summaryScreen->data->move, MOVEATTRIBUTE_CONTEST_TYPE) + 18);
+            SetTypeIcon(summaryScreen, SUMMARY_SPRITE_MOVE_TYPE_ICON_5, 5 + 4, MoveTable_LoadParam(summaryScreen->data->move, MOVEATTRIBUTE_CONTEST_TYPE) + NUM_POKEMON_TYPES);
             Sprite_SetDrawFlag2(summaryScreen->sprites[SUMMARY_SPRITE_MOVE_TYPE_ICON_5], 1);
             Sprite_SetPositionXY(summaryScreen->sprites[SUMMARY_SPRITE_MOVE_TYPE_ICON_5], MOVE_TYPE_ICON_X, MOVE_TYPE_ICON_BASE_Y + LEARNED_MOVES_MAX * PIXELS_BETWEEN_MOVES);
         }

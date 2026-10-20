@@ -35,6 +35,9 @@
 
 #ifdef SDK_PORT
 #include "port/sim_config_prj.h"
+#ifdef PLATINUM_COMMUNITY_CLIENT
+#include "port/community_qa.h"
+#endif
 #ifdef SDK_BUILD_LINUX
 #include "port/sim_icon.h"
 #endif
@@ -101,27 +104,32 @@ void NitroMain(void)
         sub_02039A64(HEAP_ID_APPLICATION, 0);
     }
 
-    if (SaveData_BackupExists(sApplication.args.saveData) == FALSE) {
-        sub_0209A74C(HEAP_ID_SYSTEM);
-    } else {
-        switch (OS_GetResetParameter()) {
-        case RESET_CLEAN:
-            sApplication.args.error = FALSE;
-            EnqueueApplication(FS_OVERLAY_ID(game_opening), &gOpeningCutsceneAppTemplate);
-            break;
+#ifdef PLATINUM_COMMUNITY_CLIENT
+    if (!CommunityQA_TryStart(sApplication.args.saveData))
+#endif
+    {
+        if (SaveData_BackupExists(sApplication.args.saveData) == FALSE) {
+            sub_0209A74C(HEAP_ID_SYSTEM);
+        } else {
+            switch (OS_GetResetParameter()) {
+            case RESET_CLEAN:
+                sApplication.args.error = FALSE;
+                EnqueueApplication(FS_OVERLAY_ID(game_opening), &gOpeningCutsceneAppTemplate);
+                break;
 
-        case RESET_ERROR:
-            SetScreenColorBrightness(DS_SCREEN_MAIN, COLOR_BLACK);
-            SetScreenColorBrightness(DS_SCREEN_SUB, COLOR_BLACK);
-            sApplication.args.error = TRUE;
-            EnqueueApplication(FS_OVERLAY_ID(game_start), &gGameStartLoadSaveAppTemplate);
-            break;
+            case RESET_ERROR:
+                SetScreenColorBrightness(DS_SCREEN_MAIN, COLOR_BLACK);
+                SetScreenColorBrightness(DS_SCREEN_SUB, COLOR_BLACK);
+                sApplication.args.error = TRUE;
+                EnqueueApplication(FS_OVERLAY_ID(game_start), &gGameStartLoadSaveAppTemplate);
+                break;
 
-        default:
-            GF_ASSERT(FALSE);
+            default:
+                GF_ASSERT(FALSE);
+            }
         }
-    }
 
+    }
     gSystem.showTitleScreenIntro = TRUE;
     gSystem.frameCounter = 0;
 

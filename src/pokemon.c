@@ -1,5 +1,7 @@
 #include "pokemon.h"
 #include "port/community_learnset.h"
+#include "port/community_catalog.h"
+#include "port/community_modern_rules.h"
 
 #include <nitro.h>
 #include <string.h>
@@ -11,7 +13,9 @@
 #include "constants/items.h"
 #include "constants/moves.h"
 #include "constants/narc.h"
+#include "constants/overworld_weather.h"
 #include "constants/pokemon.h"
+#include "generated/pokemon_types.h"
 #include "constants/sound.h"
 #include "generated/abilities.h"
 #include "generated/evolution_methods.h"
@@ -30,6 +34,7 @@
 #include "ball_seal_info.h"
 #include "charcode_util.h"
 #include "flags.h"
+#include "field_overworld_state.h"
 #include "heap.h"
 #include "inlines.h"
 #include "item.h"
@@ -3532,6 +3537,33 @@ BOOL Pokemon_ShouldLevelUp(Pokemon *mon)
     return FALSE;
 }
 
+enum {
+    COMMUNITY_EVO_LEVEL_DAY = 64,
+    COMMUNITY_EVO_LEVEL_RAIN = 65,
+    COMMUNITY_EVO_FRIENDSHIP_FAIRY_MOVE = 66,
+    COMMUNITY_EVOLUTION_SYLVEON = 552,
+};
+
+static BOOL Pokemon_HasKnownFairyMove(Pokemon *mon)
+{
+    for (int slot = 0; slot < LEARNED_MOVES_MAX; slot++) {
+        u16 move = Pokemon_GetValue(mon, MON_DATA_MOVE1 + slot, NULL);
+        /* Do not index the source move archive with unsupported modern IDs. */
+        if (move != MOVE_NONE && move < MAX_MOVES && MoveTable_LoadParam(move, MOVEATTRIBUTE_TYPE) == TYPE_FAIRY) return TRUE;
+    }
+    return FALSE;
+}
+
+static BOOL Pokemon_EvolutionHasRain(void)
+{
+    SaveData *save = SaveData_Ptr();
+    if (save == NULL) return FALSE;
+    FieldOverworldState *fieldState = SaveData_GetFieldOverworldState(save);
+    if (fieldState == NULL) return FALSE;
+    u16 weather = FieldOverworldState_GetWeather(fieldState);
+    return weather >= OVERWORLD_WEATHER_RAINING && weather <= OVERWORLD_WEATHER_THUNDERSTORM;
+}
+
 u16 Pokemon_GetEvolutionTargetSpecies(Party *party, Pokemon *mon, u8 evoClass, u16 evoParam, int *evoTypeResult)
 {
     u16 targetSpecies = SPECIES_NONE;
@@ -3566,8 +3598,31 @@ u16 Pokemon_GetEvolutionTargetSpecies(Party *party, Pokemon *mon, u8 evoClass, u
         u8 monLevel = Pokemon_GetValue(mon, MON_DATA_LEVEL, NULL);
         monFriendship = Pokemon_GetValue(mon, MON_DATA_FRIENDSHIP, NULL);
 
+        /* Separate priority rule: retain all seven legacy slots and their
+         * order instead of writing an eighth entry into the legacy buffer. */
+        if (CommunityModernRules_Enabled() && monSpecies == SPECIES_EEVEE
+            && monFriendship >= 160 && Pokemon_HasKnownFairyMove(mon)) {
+            targetSpecies = COMMUNITY_EVOLUTION_SYLVEON;
+            *evoTypeResult = COMMUNITY_EVO_FRIENDSHIP_FAIRY_MOVE;
+            break;
+        }
+
         for (i = 0; i < MAX_EVOLUTIONS; i++) {
             switch (speciesEvolutions[i].method) {
+            case COMMUNITY_EVO_LEVEL_DAY:
+                if (CommunityModernRules_Enabled() && speciesEvolutions[i].param <= monLevel && IsNight() == FALSE) {
+                    targetSpecies = speciesEvolutions[i].targetSpecies;
+                    *evoTypeResult = COMMUNITY_EVO_LEVEL_DAY;
+                }
+                break;
+
+            case COMMUNITY_EVO_LEVEL_RAIN:
+                if (CommunityModernRules_Enabled() && speciesEvolutions[i].param <= monLevel && Pokemon_EvolutionHasRain()) {
+                    targetSpecies = speciesEvolutions[i].targetSpecies;
+                    *evoTypeResult = COMMUNITY_EVO_LEVEL_RAIN;
+                }
+                break;
+
             case EVO_LEVEL_HAPPINESS:
                 if (EVOLVE_FRIENDSHIP_THRESHOLD <= monFriendship) {
                     targetSpecies = speciesEvolutions[i].targetSpecies;
@@ -4580,6 +4635,11 @@ enum CommunityLearnsetResult Pokemon_LoadCommunityLearnsetOf(int species, int fo
         return COMMUNITY_LEARNSET_INVALID;
     }
     out->count = 0;
+    if (CommunityModernRules_Enabled()
+        && species >= COMMUNITY_MODERN_SPECIES_FIRST
+        && species < COMMUNITY_MODERN_SPECIES_FIRST + COMMUNITY_MODERN_SPECIES_COUNT) {
+        return CommunityCatalog_Learnset(CommunityCatalog_Runtime(), species, out);
+    }
     int member = Pokemon_GetFormNarcIndex(species, form);
     NARC *narc = NARC_ctor(NARC_INDEX_POKETOOL__PERSONAL__WOTBL, HEAP_ID_SYSTEM);
     if (narc == NULL) {
@@ -4602,7 +4662,11 @@ enum CommunityLearnsetResult Pokemon_LoadCommunityLearnsetOf(int species, int fo
     }
     NARC_ReadFromMember(narc, member, 0, bytes, packed);
     NARC_dtor(narc);
-    return CommunityLearnset_DecodeLegacy(packed, bytes / sizeof(*packed), out);
+    enum CommunityLearnsetResult result = CommunityLearnset_DecodeLegacy(packed, bytes / sizeof(*packed), out);
+    if (result == COMMUNITY_LEARNSET_OK && CommunityModernRules_Enabled()) {
+        result = CommunityCatalog_Supplement(CommunityCatalog_Runtime(), member, out);
+    }
+    return result;
 }
 
 void PlayCryWithParams(ChatotCry *chatotCry, enum PokemonCryMod cryMod, u16 species, int form, int pan, int volume, int forceDefaultChatot, enum HeapID heapID)
@@ -4817,17 +4881,25 @@ void sub_020780C4(Pokemon *mon, u32 monPersonality)
 
 static void SpeciesData_LoadSpecies(int monSpecies, SpeciesData *speciesData)
 {
+    if (CommunityModernRules_Enabled()
+        && CommunityCatalog_Personal(CommunityCatalog_Runtime(), monSpecies, (uint8_t *)speciesData)) return;
     NARC_ReadWholeMemberByIndexPair(speciesData, NARC_INDEX_POKETOOL__PERSONAL__PL_PERSONAL, monSpecies);
+    if (CommunityModernRules_Enabled()) CommunityCatalog_Types(CommunityCatalog_Runtime(), monSpecies, speciesData->types);
 }
 
 static void SpeciesData_LoadForm(int monSpecies, int monForm, SpeciesData *speciesData)
 {
     monSpecies = Pokemon_GetFormNarcIndex(monSpecies, monForm);
+    if (CommunityModernRules_Enabled()
+        && CommunityCatalog_Personal(CommunityCatalog_Runtime(), monSpecies, (uint8_t *)speciesData)) return;
     NARC_ReadWholeMemberByIndexPair(speciesData, NARC_INDEX_POKETOOL__PERSONAL__PL_PERSONAL, monSpecies);
+    if (CommunityModernRules_Enabled()) CommunityCatalog_Types(CommunityCatalog_Runtime(), monSpecies, speciesData->types);
 }
 
 static void LoadSpeciesEvolutions(int monSpecies, SpeciesEvolution speciesEvolutions[MAX_EVOLUTIONS])
 {
+    if (CommunityModernRules_Enabled()
+        && CommunityCatalog_Evolutions(CommunityCatalog_Runtime(), monSpecies, (uint8_t *)speciesEvolutions)) return;
     NARC_ReadWholeMemberByIndexPair(speciesEvolutions, NARC_INDEX_POKETOOL__PERSONAL__EVO, monSpecies);
 }
 

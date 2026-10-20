@@ -1,6 +1,6 @@
 [wrap-git]
-url = https://github.com/cybervisi0n/libntr.git
-revision = 1555d911ac80c0190ac1c321f99f1323de8b3c09
+url = https://github.com/dr4lera/pokemon-platinum-together-open-sourced-runtime.git
+revision = d66f6f058e4b985afce3dcb14a44dfa66a47657e
 depth = 1
 directory = libntr
 

@@ -58,7 +58,6 @@ static void parse_args(int *pargc, char ***pargv);
 static void proc_move(datafile_t *df);
 static void proc_text(datafile_t *df, size_t i, const char *basename);
 static void prep_scripts(const char *basename);
-static void pack_extra_moves(void);
 static void prep_extra_scripts(void);
 static void init_orderfiles(void);
 static int  close_orderfiles(void);
@@ -82,7 +81,7 @@ int main(int argc, char **argv) {
         .enums       = enums,
         .archives    = archives,
         .textbanks   = textbanks,
-        .extra_files = 3,
+        .extra_files = 0,
         .hook_before = init_orderfiles,
     );
 
@@ -106,7 +105,6 @@ int main(int argc, char **argv) {
         dp_free(&df);
     }
 
-    pack_extra_moves();
     prep_extra_scripts();
     return common_done(errc, close_orderfiles);
 }
@@ -218,74 +216,20 @@ static int close_orderfiles(void) {
     return EXIT_SUCCESS;
 }
 
-static void pack_extra_moves(void) {
-    // MATCH DETAIL: The retail game contains these 3 additional entries at the tail of the move data
-    // archive. They are inaccessible, but must be present to produce a binary match.
-
-    MoveTable m468 = {
-        .class          = CLASS_SPECIAL,
-        .type           = TYPE_NORMAL,
-        .power          = 100,
-        .accuracy       = 100,
-        .pp             = 10,
-        .effect         = BATTLE_EFFECT_HIT,
-        .effectChance   = 0,
-        .range          = RANGE_SINGLE_TARGET,
-        .priority       = 0,
-        .flags          = MOVE_FLAG_CAN_PROTECT | MOVE_FLAG_CAN_MIRROR_MOVE | MOVE_FLAG_TRIGGERS_KINGS_ROCK,
-        .contest.effect = CONTEST_EFFECT_LOW_VOLTAGE_ADVANTAGE,
-        .contest.type   = CONTEST_TYPE_BEAUTY,
-    };
-
-    MoveTable m469 = {
-        .class          = CLASS_SPECIAL,
-        .type           = TYPE_NORMAL,
-        .power          = 100,
-        .accuracy       = 100,
-        .pp             = 10,
-        .effect         = BATTLE_EFFECT_HIT,
-        .effectChance   = 0,
-        .range          = RANGE_SINGLE_TARGET,
-        .priority       = 0,
-        .flags          = MOVE_FLAG_CAN_PROTECT | MOVE_FLAG_CAN_MIRROR_MOVE | MOVE_FLAG_TRIGGERS_KINGS_ROCK,
-        .contest.effect = CONTEST_EFFECT_FIRST_PERFORMANCE_ADVANTAGE,
-        .contest.type   = CONTEST_TYPE_CUTE,
-    };
-
-    MoveTable m470 = {
-        .class          = CLASS_SPECIAL,
-        .type           = TYPE_NORMAL,
-        .power          = 100,
-        .accuracy       = 100,
-        .pp             = 10,
-        .effect         = BATTLE_EFFECT_HIT,
-        .effectChance   = 0,
-        .range          = RANGE_SINGLE_TARGET,
-        .priority       = 0,
-        .flags          = MOVE_FLAG_CAN_PROTECT | MOVE_FLAG_CAN_MIRROR_MOVE | MOVE_FLAG_TRIGGERS_KINGS_ROCK,
-        .contest.effect = CONTEST_EFFECT_FINAL_PERFORMANCE_ADVANTAGE,
-        .contest.type   = CONTEST_TYPE_SMART,
-    };
-
-    nitroarc_ppack(&archives[0].packer, &m468, sizeof(m468), NULL);
-    nitroarc_ppack(&archives[0].packer, &m469, sizeof(m469), NULL);
-    nitroarc_ppack(&archives[0].packer, &m470, sizeof(m470), NULL);
-}
-
 static void prep_extra_scripts(void) {
     // MATCH DETAIL: The retail game contains additional entries in the animation scripts archive that
     // must be present to produce a binary match.
-    for (size_t i = 468; i <= 474; i++) {
+    for (size_t i = MAX_MOVES; i <= 474; i++) {
         order_subfile(".shared", "anim_0468_0474", f_anim_scripts);
     }
 
-    for (size_t i = 475; i <= 500; i++) {
+    for (size_t i = MAX_MOVES > 475 ? MAX_MOVES : 475; i <= 500; i++) {
         order_subfile(".shared", "anim_0475_0500", f_anim_scripts);
     }
 
     // MATCH DETAIL: The retail game contains additional entries in the move scripts archive that
     // must be present to produce a binary match.
-    for (size_t i = 468; i <= 500; i++) {
+    for (size_t i = MAX_MOVES; i <= 500; i++) {
         order_subfile(".shared", "script_0468_0500", f_move_scripts);
     }
 }

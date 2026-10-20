@@ -2,6 +2,8 @@
 
 #include "constants/graphics.h"
 #include "generated/pokemon_types.h"
+#include "port/community_catalog.h"
+#include "port/community_modern_rules.h"
 
 ALIGN_4 static const u16 sMovePaletteNormal[] = {
     RGB(13, 14, 29),
@@ -417,7 +419,20 @@ const u16 *GetMoveTypePalette(int moveType)
 {
     const u16 *paletteSourceAdr;
 
-    if (moveType != -1) {
+    if (moveType == TYPE_FAIRY) {
+        static u16 fairy[16];
+        static int initialized;
+        if (!CommunityModernRules_Enabled()) return sMovePaletteNone;
+        if (!initialized) {
+            uint8_t bytes[COMMUNITY_FAIRY_MOVE_PALETTE_BYTES];
+            if (!CommunityCatalog_FairyMovePalette(CommunityCatalog_Runtime(), bytes)) return sMovePaletteNone;
+            for (unsigned i = 0; i < 16; i++) fairy[i] = (u16)(bytes[i * 2] | ((unsigned)bytes[i * 2 + 1] << 8));
+            initialized = 1;
+        }
+        return fairy;
+    }
+
+    if (moveType >= 0 && moveType < (int)(sizeof(sMovePaletteTable) / sizeof(sMovePaletteTable[0]))) {
         paletteSourceAdr = sMovePaletteTable[moveType];
     } else {
         paletteSourceAdr = sMovePaletteNone;
@@ -428,6 +443,7 @@ const u16 *GetMoveTypePalette(int moveType)
 
 void LoadMoveSelectPltt(PaletteData *paletteSys, enum PokemonType moveType, int unused, enum PaletteBufferID bufferID, int paletteDest)
 {
+    (void)unused;
     const u16 *paletteSource = GetMoveTypePalette(moveType);
     PaletteData_LoadBuffer(paletteSys, paletteSource, bufferID, PLTT_DEST(paletteDest), PALETTE_SIZE_BYTES);
 }

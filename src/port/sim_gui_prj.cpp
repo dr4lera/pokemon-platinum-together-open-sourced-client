@@ -6,6 +6,10 @@
 #include "port/debug_field.h"
 
 namespace SIM::GUI {
+#ifdef SDK_BUILD_WIN64
+void CommunityOnlineMain(bool* openState);
+static bool sCommunityOnlineOpen = false;
+#endif
 
 static bool sCreateMonOpen = false;
 static bool sCreateItemOpen = false;
@@ -17,6 +21,9 @@ void PrjMain(bool * openState) {
     ImGui::Begin("pokeplatinum", openState);
 
     ImGui::Text("Git rev: %s", SIM_GetProjectGitHash());
+#ifdef SDK_BUILD_WIN64
+    AppButton("Community servers", &sCommunityOnlineOpen, nullptr, CommunityOnlineMain);
+#endif
 
     AppButton("Cheats", &sCheatsOpen, nullptr, CheatsMain);
     AppButton("Config", &sConfigPrjOpen, nullptr, ConfigPrjMain);
