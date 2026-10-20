@@ -496,6 +496,26 @@
     {
       "id": "pl_msg_00000610_00123",
       "en_US": "Bad Dreams"
-    }
+    },
+    { "id": "pl_msg_00000610_00124", "en_US": "Unnerve" },
+    { "id": "pl_msg_00000610_00125", "en_US": "Healer" },
+    { "id": "pl_msg_00000610_00126", "en_US": "Big Pecks" },
+    { "id": "pl_msg_00000610_00127", "en_US": "Illusion" },
+    { "id": "pl_msg_00000610_00128", "en_US": "Infiltrator" },
+    { "id": "pl_msg_00000610_00129", "en_US": "Moxie" },
+    { "id": "pl_msg_00000610_00130", "en_US": "Sap Sipper" },
+    { "id": "pl_msg_00000610_00131", "en_US": "Prankster" },
+    { "id": "pl_msg_00000610_00132", "en_US": "Victory Star" },
+    { "id": "pl_msg_00000610_00133", "en_US": "Turboblaze" },
+    { "id": "pl_msg_00000610_00134", "en_US": "Teravolt" },
+    { "id": "pl_msg_00000610_00135", "en_US": "Strong Jaw" },
+    { "id": "pl_msg_00000610_00136", "en_US": "Sweet Veil" },
+    { "id": "pl_msg_00000610_00137", "en_US": "Stance Change" },
+    { "id": "pl_msg_00000610_00138", "en_US": "Dark Aura" },
+    { "id": "pl_msg_00000610_00139", "en_US": "Fairy Aura" },
+    { "id": "pl_msg_00000610_00140", "en_US": "Schooling" },
+    { "id": "pl_msg_00000610_00141", "en_US": "Disguise" },
+    { "id": "pl_msg_00000610_00142", "en_US": "Unseen Fist" },
+    { "id": "pl_msg_00000610_00143", "en_US": "Battle Bond" }
   ]
 }

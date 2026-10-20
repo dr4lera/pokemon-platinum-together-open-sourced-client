@@ -47,6 +47,8 @@ jobs:
           PT_BUILD_MSYS2_ROOT: ${{ steps.msys2.outputs.msys2-location }}
         run: |
           $env:PATH="$env:PT_BUILD_MSYS2_ROOT\ucrt64\bin;$env:PT_BUILD_MSYS2_ROOT\usr\bin;"+$env:PATH
+          $env:CC="$env:PT_BUILD_MSYS2_ROOT/ucrt64/bin/gcc.exe"
+          $env:CXX="$env:PT_BUILD_MSYS2_ROOT/ucrt64/bin/g++.exe"
           ./tools/community/build-win64.ps1 -Jobs 4
       - name: Check community rules
         shell: pwsh
@@ -54,6 +56,8 @@ jobs:
           PT_BUILD_MSYS2_ROOT: ${{ steps.msys2.outputs.msys2-location }}
         run: |
           $env:PATH="$env:PT_BUILD_MSYS2_ROOT\ucrt64\bin;$env:PT_BUILD_MSYS2_ROOT\usr\bin;"+$env:PATH
+          $env:CC="$env:PT_BUILD_MSYS2_ROOT/ucrt64/bin/gcc.exe"
+          $env:CXX="$env:PT_BUILD_MSYS2_ROOT/ucrt64/bin/g++.exe"
           python tests/run_community_palette.py --cc "$env:PT_BUILD_MSYS2_ROOT/ucrt64/bin/gcc.exe"
           if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
           python tests/run_community_rules.py
@@ -76,6 +80,8 @@ jobs:
           if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
           python tests/run_community_asset_overlay.py
           if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+          python subprojects/libntr/tests/community_wm_test.py
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
           python tests/run_community_wireless.py
           if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
           python tests/run_community_wireless_core.py
@@ -83,6 +89,18 @@ jobs:
           python tests/run_community_species_text.py
           if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
           python tests/run_community_modern_assets.py
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+          python tests/run_community_controller.py
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+          python tests/run_community_link_qa_guard.py
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+          python tests/run_community_wireless_scan.py
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+          python tests/run_community_stat_stages.py
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+          python tests/run_community_ability_updates.py
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+          python tests/run_community_area_light.py --engine-build build_win64
           if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
           python tests/run_community_fairy_moves.py
           if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
@@ -97,6 +115,8 @@ jobs:
           PT_BUILD_MSYS2_ROOT: ${{ steps.msys2.outputs.msys2-location }}
         run: |
           $env:PATH="$env:PT_BUILD_MSYS2_ROOT\ucrt64\bin;$env:PT_BUILD_MSYS2_ROOT\usr\bin;"+$env:PATH
+          $env:CC="$env:PT_BUILD_MSYS2_ROOT/ucrt64/bin/gcc.exe"
+          $env:CXX="$env:PT_BUILD_MSYS2_ROOT/ucrt64/bin/g++.exe"
           ./tests/community_online_run.ps1 -BackendRoot "$pwd/.build-tools/community-test-backend" -FixtureDirectory "$env:RUNNER_TEMP/community-online-$env:GITHUB_RUN_ID" -Compiler "$env:PT_BUILD_MSYS2_ROOT/ucrt64/bin/g++.exe"
       - name: Check actual wireless provider against disposable backend
         shell: pwsh
@@ -104,4 +124,16 @@ jobs:
           PT_BUILD_MSYS2_ROOT: ${{ steps.msys2.outputs.msys2-location }}
         run: |
           $env:PATH="$env:PT_BUILD_MSYS2_ROOT\ucrt64\bin;$env:PT_BUILD_MSYS2_ROOT\usr\bin;"+$env:PATH
+          $env:CC="$env:PT_BUILD_MSYS2_ROOT/ucrt64/bin/gcc.exe"
+          $env:CXX="$env:PT_BUILD_MSYS2_ROOT/ucrt64/bin/g++.exe"
           ./tests/community_wireless_provider_run.ps1 -BackendRoot "$pwd/.build-tools/community-test-backend" -FixtureDirectory "$env:RUNNER_TEMP/community-wireless-$env:GITHUB_RUN_ID" -Compiler "$env:PT_BUILD_MSYS2_ROOT/ucrt64/bin/g++.exe"
+      - name: Check presentation and QA controller against disposable backend
+        shell: pwsh
+        env:
+          PT_BUILD_MSYS2_ROOT: ${{ steps.msys2.outputs.msys2-location }}
+        run: |
+          $env:PATH="$env:PT_BUILD_MSYS2_ROOT\ucrt64\bin;$env:PT_BUILD_MSYS2_ROOT\usr\bin;"+$env:PATH
+          $env:CC="$env:PT_BUILD_MSYS2_ROOT/ucrt64/bin/gcc.exe"
+          $env:CXX="$env:PT_BUILD_MSYS2_ROOT/ucrt64/bin/g++.exe"
+          ./tests/community_presentation_run.ps1 -BackendRoot "$pwd/.build-tools/community-test-backend" -FixtureDirectory "$env:RUNNER_TEMP/community-presentation-$env:GITHUB_RUN_ID" -Compiler "$env:PT_BUILD_MSYS2_ROOT/ucrt64/bin/g++.exe"
+          ./tests/community_link_qa_controller_run.ps1 -BackendRoot "$pwd/.build-tools/community-test-backend" -FixtureDirectory "$env:RUNNER_TEMP/community-qa-controller-$env:GITHUB_RUN_ID" -Compiler "$env:PT_BUILD_MSYS2_ROOT/ucrt64/bin/g++.exe"

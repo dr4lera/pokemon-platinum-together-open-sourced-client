@@ -5,8 +5,10 @@ remain outside the public source checkout and must not be published.
 """
 import argparse
 import hashlib
+import importlib.util
 from pathlib import Path
 import struct
+import sys
 import zlib
 
 REFERENCE_SHA256 = "3688d6b1c5b762b9a1f8d74b64f3a6a62d4b07d525074a94b432e4b0b2866ec9"
@@ -26,9 +28,13 @@ SPECIES_TABLES = [
     (0xE1A8B0, 4 * 6, "c08dd772533e3e5e7615437e8d190cdb867e2eee05126b3bed9f0b549c7eda89"),
 ]
 FAIRY_MOVE_PALETTE = (0xDE1B04, 32, "ec786db7408190bda79b5d3a97fbedecdc1c27dbc7a4b463642e980b8f18a29b")
+STAT_STAGES = (0xE1ABE0, 41 * 12, "6090c97b08f5a1069c483907bf89056fc29f15c22dcf101719505843578fcf62")
+SIDE_EFFECTS = (0xDE6F80, 178 * 4, "f08ccd8d3ae66165b408c0216fecbab4eb4835523bf3c565a643cf5e26996b0b")
+METRONOME_EXCLUSIONS = (0xE1AB80, 34 * 2, "969b61d30433036bc66c709b2aa0a7663739d54739deae081c4ac182afa6fb09")
+MOVE_ARCHIVE_SHA256 = "481cca9e8e3861e267dcef73c7cd6d3a02b69e3a3fc1369411ea93393b05a344"
 
 
-def build_cache(image):
+def build_cache(image, move_archive):
     """Hash-pin every input and remove all metadata pointers/string fields."""
     if hashlib.sha256(image).hexdigest() != REFERENCE_SHA256:
         raise ValueError("Reference does not match the pinned 0.1.7 artifact")
@@ -42,15 +48,33 @@ def build_cache(image):
             # three unsigned numeric fields belong in the portable cache.
             data = b"".join(data[i:i + 2] + data[i + 24:i + 28] for i in range(0, length, 48))
         tables.append(data)
+    if hashlib.sha256(move_archive).hexdigest() != MOVE_ARCHIVE_SHA256:
+        raise ValueError("Move archive differs from the pinned 0.1.7 artifact")
+    spec = importlib.util.spec_from_file_location("community_catalog_assets", Path(__file__).with_name("prepare-modern-assets.py"))
+    assets = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = assets
+    spec.loader.exec_module(assets)
+    archive = assets.parse_narc(move_archive)
+    if len(archive.members) != 851 or any(len(record) != 16 for record in archive.members):
+        raise ValueError("Move archive record layout mismatch")
+    tables.append(b"".join(archive.members[474:848]))
+    for offset, length, digest in (STAT_STAGES, SIDE_EFFECTS, METRONOME_EXCLUSIONS):
+        data = image[offset:offset + length]
+        if len(data) != length or hashlib.sha256(data).hexdigest() != digest:
+            raise ValueError("Modern battle table differs from its selected version")
+        if (offset, length, digest) == SIDE_EFFECTS:
+            data = data[145 * 4:]
+        tables.append(data)
     payload = b"".join(tables)
-    assert len(payload) == 29908
-    return b"PTCAT03\0" + bytes.fromhex(REFERENCE_SHA256) + struct.pack("<II", len(payload), zlib.crc32(payload)) + payload
+    assert len(payload) == 36584
+    return b"PTCAT04\0" + bytes.fromhex(REFERENCE_SHA256) + struct.pack("<II", len(payload), zlib.crc32(payload)) + payload
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("reference", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--move-archive", required=True, type=Path, help="Explicit pinned private patch/poketool/waza/pl_waza_tbl.narc")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
     output = args.output.resolve()
@@ -59,13 +83,13 @@ def main():
     if output.exists():
         raise SystemExit("Refusing to replace an existing runtime cache")
     try:
-        cache = build_cache(args.reference.read_bytes())
+        cache = build_cache(args.reference.read_bytes(), args.move_archive.read_bytes())
     except ValueError as error:
         raise SystemExit(str(error)) from error
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("xb") as stream:
         stream.write(cache)
-    print("Private V3 runtime cache created: 65 numeric species records, 4 graphics forms, learnsets/overrides and the Fairy move-menu palette.")
+    print("Private V4 cache created: species/graphics data, 374 move metadata records and bounded battle tables.")
     print("Set PLATINUM_COMMUNITY_CATALOG to this file for source-client content development.")
     print("This data provider alone does not establish modern battle/rendering or multiplayer parity.")
 

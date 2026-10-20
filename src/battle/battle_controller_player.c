@@ -30,6 +30,7 @@
 #include "battle/battle_system.h"
 #include "battle/capture_rules.h"
 #include "battle/common.h"
+#include "battle/community_ability_rules.h"
 #include "battle/message_defs.h"
 
 #include "bag.h"
@@ -2945,6 +2946,8 @@ static int BattleControllerPlayer_CheckMoveHitAccuracy(BattleSystem *battleSys, 
     if (Battler_Ability(battleCtx, attacker) == ABILITY_COMPOUND_EYES) {
         hitRate = hitRate * 130 / 100;
     }
+
+    hitRate = CommunityAbility_AdjustAccuracy(battleSys, battleCtx, attacker, hitRate);
 
     if (NO_CLOUD_NINE) {
         if (WEATHER_IS_SAND && Battler_IgnorableAbility(battleCtx, attacker, defender, ABILITY_SAND_VEIL) == TRUE) {

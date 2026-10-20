@@ -105,7 +105,7 @@ not a live WM simulation, native gameplay verification or a full client build.
 
 ## Own-client semantic provider
 
-`community_wireless_core.cpp` now implements a bounded, fixed-width `CWM1`
+`community_wireless_core.cpp` now implements a bounded, fixed-width `CWM2`
 protocol behind an explicitly installed runtime provider. Account/party seats
 route messages through the signed Service link; DS parents allocate child AIDs
 independently. Discovery metadata, parent/child join with24-byte SSID, MP ports,
@@ -137,3 +137,20 @@ close controls under Community servers. Enable `communityLink.enabled` only on
 a combined backend. After all party members prepare and the leader opens, the
 native Pokemon Center Union Room is the intended game entry point. Two actual
 games completing a battle/trade and their save/recovery checks remain pending.
+
+## SDK discovery correction
+
+Provider ABI2 and the `community-wm-v2` compatibility revision carry real parent
+packet limits, channel, beacon period, entry count and attributes. SDK beacon
+payloads are copied as bytes into the actual `u16[56]` field. The scan regression
+uses the actual SDK declarations and fails the previous widening copy. The
+loopback provider fixture now compiles against the real native SDK headers too.
+
+Runtime ordinary scan writes one descriptor, rotates matching parents and
+publishes full bounded callbacks. ScanEx respects output extent and filters;
+community discovery excludes the synthetic legacy access point. Connect sets
+actual parent MAC and MP sizes. EndMP retains the association role; EndParent
+withdraws the beacon. Full-room association refusal leaves the authenticated
+session available for a later retry. The isolated actual-SDK runtime fixture
+covers these boundaries, including output canaries; two-game activity acceptance
+remains separate.

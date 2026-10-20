@@ -183,3 +183,75 @@ adapter; see `COMMUNITY_WIRELESS.md` for its actual two-adapter fixture. Rendere
 online UI, packaged HTTPS behavior and two actual game battle/trade flows remain
 acceptance checks. World co-op, Inverna actors, save migration and full Together
 parity remain separate work. Global chat is not party-private messaging.
+
+## Trainer profile and plaza presentation
+
+`Snapshot::trainer` is the authenticated account's server trainer profile.
+`RefreshTrainer` and `UpdateTrainer` use the actual `trainer.get` / `trainer.put`
+contract: ASCII names up to 10 bytes, look 0–255, outfit 0–65535,
+`tutorial_done`, and the server's optimistic revision. An update sends the
+caller's revision unchanged. A conflicting edit returns the latest profile
+with `conflict=true`; it never overwrites the newer edit or retries silently.
+Only one profile request can be outstanding. The GUI preserves an edited draft
+until save succeeds or the user chooses the latest profile. Profile values are
+separate from native trainer/save data. `loaded` distinguishes an unanswered
+request from an explicit `trainer:null`: only the latter permits revision-zero
+profile creation, which also supports owner-enrolled accounts.
+
+Party members and city players now carry the server's exact look/outfit IDs
+and validated optional `{creation,version,template,hash}` custom-art reference.
+These IDs are **opaque Together appearance identifiers**. They are not vanilla
+Appearance indices or raw map-object graphics IDs. The GUI displays the values
+and metadata, with explicit unsupported-rendering labels. This unit does not
+download, decode, install or render PTTR art and does not offer an art-selection
+UI: `trainer.art` has no acknowledgement and `trainer.get` omits the selected
+reference. An acknowledged owned-collection workflow is a separate unit.
+
+`EnterCity`, `LeaveCity`, and `SetCityStatus` use the authenticated `plaza`
+social routes. `Snapshot::city` reports Absent/Entering/Present/Leaving, the
+authenticated connection generation, local server slot, and at most 63 other
+socket profiles. Actors are keyed by slot within that generation: multiple
+sockets for one player remain distinct. A same-slot profile refresh replaces
+presentation metadata, preserving its server status; no game position exists
+in this snapshot. Unknown status/drop slots do not create actors.
+
+Leaving immediately hides the roster and gates reentry until `city.left`.
+It also cancels an in-flight enter: a late joined response cannot restore
+presence while Leaving. The leave request has a dedicated flag outside the
+bounded ordinary command queue, and party/invitation/link activity never gates
+it. Profile and enter/leave replies have a 15-second deadline; missing replies
+fail the connection rather than leaving an indefinite pending UI. Disconnect,
+failure, and reconnect clear all presentation state. A new lobby connection
+does not automatically reenter the city or replay old mutations.
+An enter error while Leaving preserves the gate until the queued leave's ack,
+so an old ack cannot cancel a newly requested entry. Receive handlers check
+the stop flag under their publication lock and cannot repopulate presentation
+after concurrent disconnection.
+
+The existing backend's city position envelope is recognized only as the exact
+bounded `[2,1,slot,8,eight opaque bytes]` framing, including fragmented delivery.
+Its payload is ignored. No invented coordinates, scene warps, map objects,
+nametag overlays, save writes or shared-world gameplay are introduced. Joining
+plaza presence in the GUI does **not** enter an Inverna map. Native Union Room
+actors and their wireless lifecycle remain separate.
+
+Run the isolated actual-adapter / real-Hub fixture with a fresh private path:
+
+```powershell
+./tests/community_presentation_run.ps1 `
+  -BackendRoot 'D:/Source/plat-together-server' `
+  -FixtureDirectory 'D:/PrivateFixtures/community-presentation-001' `
+  -NodePath 'D:/Runtime/node.exe'
+```
+
+It verifies valid and refused profile fields, optimistic revision conflict,
+party and same-slot city appearance refresh, authenticated owned-art metadata,
+status changes, fragmented opaque position framing, two real authenticated
+sockets for the same account in separate slots, leaving with queued activity,
+canceling a pending enter, fresh connection generation after reconnect, explicit
+reentry, confirmed absent-profile creation, malformed appearance rejection and
+cleanup. A deterministic actual-handler test also covers stop/publication races
+and enter-error/cancel acknowledgement ordering. It copies only a newly
+generated fixture's protected account file to exercise the same-account case;
+no original profiles, saves, assets or public services are involved. UI rendering
+and actual Inverna/world integration remain separate acceptance work.

@@ -41,6 +41,9 @@
 
 #ifdef SDK_PORT
 #include "port/debug_field.h"
+#if defined(PLATINUM_COMMUNITY_CLIENT) && defined(SDK_BUILD_WIN64)
+#include "port/community_link_qa.h"
+#endif
 #endif
 
 FS_EXTERN_OVERLAY(overlay5);
@@ -211,6 +214,9 @@ static void ExecuteAndCleanupIfDone(ApplicationManager **appManPtr)
 
 static BOOL HandleInputsEventsAndProcesses(FieldSystem *fieldSystem)
 {
+#if defined(PLATINUM_COMMUNITY_CLIENT) && defined(SDK_BUILD_WIN64)
+    CommunityLinkQA_Tick(fieldSystem);
+#endif
     HandleFieldInput(fieldSystem);
     if (FieldTask_Run(fieldSystem) == TRUE && fieldSystem->unk_04 != NULL) {
         FieldSystem_SendPoketchEvent(fieldSystem, POKETCH_EVENT_SLEEP, 0);

@@ -15,6 +15,7 @@ void WMSP_Wait4Wm9(void);
 #include <algorithm>
 #include <chrono>
 #include <condition_variable>
+#include <cstddef>
 #include <cstring>
 #include <mutex>
 #include <utility>
@@ -29,6 +30,7 @@ struct Provider {
     std::string generation, blocked, error;
     std::uint32_t ggid = 0, tgid = 0, nonce = 0;
     Role configuredRole = Role::Off;
+    ParentInfo parent;
     std::vector<std::uint8_t> gameInfo;
 };
 Provider& Context() { static Provider* p = new Provider; return *p; }
@@ -79,7 +81,7 @@ void Process(void* opaque)
                 if (!Roster(link,roster) || !p.core.Begin(link.seat,roster)) Fail(p,"The server's wireless roster is invalid.");
                 else {
                     p.error.clear();
-                    p.core.SetInfo(p.ggid,p.tgid,p.gameInfo.data(),static_cast<unsigned>(p.gameInfo.size()));
+                    p.core.SetInfo(p.ggid,p.tgid,p.gameInfo.data(),static_cast<unsigned>(p.gameInfo.size()),p.parent);
                     // An association/AID cannot survive another session epoch.
                     if (p.configuredRole == Role::Parent) p.core.SetRole(Role::Parent);
                 }
@@ -141,13 +143,14 @@ const SIM_Net_Player_t* Players(void* opaque)
     }
     return copy;
 }
-void Info(void* opaque,int ggid,int tgid,const u8* info,int size)
+void Info(void* opaque,int ggid,int tgid,const u8* info,int size,const SIM_Net_ParentInfo_t* parent = nullptr)
 {
     auto& p=Get(opaque); std::lock_guard<std::mutex> lock(p.mutex);
     if (size < 0 || size > 112 || (size && !info)) { Fail(p,"Wireless game information is invalid."); return; }
     p.ggid=static_cast<std::uint32_t>(ggid); p.tgid=static_cast<std::uint32_t>(tgid);
+    p.parent = parent ? ParentInfo{parent->parentMaxSize,parent->childMaxSize,parent->beaconPeriod,parent->channel,parent->maxEntry,parent->attributes} : ParentInfo{};
     p.gameInfo.clear(); if (size) p.gameInfo.assign(info,info+size);
-    if (!p.core.SetInfo(p.ggid,p.tgid,info,static_cast<unsigned>(size))) Fail(p,"Wireless game information could not be queued.");
+    if (!p.core.SetInfo(p.ggid,p.tgid,info,static_cast<unsigned>(size),p.parent)) Fail(p,"Wireless game information could not be queued.");
     else if (p.core.Active()) Flush(p);
 }
 void RoleChange(void* opaque,SIM_Net_MPState_t state)
@@ -191,10 +194,16 @@ int Scan(void* opaque,WMBssDesc* output)
         const auto& peer=p.core.GetPeer(i); if (peer.role!=Role::Parent) continue;
         auto& bss=output[found++]; std::memset(&bss,0,sizeof(bss));
         std::memcpy(bss.bssid,peer.mac.data(),6);
-        bss.gameInfo.magicNumber=WM_GAMEINFO_MAGIC_NUMBER; bss.gameInfoLength=WM_GAMEINFO_LENGTH_MIN;
-        bss.gameInfo.gameNameCount_attribute=WM_ATTR_FLAG_ENTRY; bss.gameInfo.ggid=peer.ggid; bss.gameInfo.tgid=peer.tgid;
+        bss.gameInfo.magicNumber=WM_GAMEINFO_MAGIC_NUMBER;
+        bss.gameInfo.ver=WM_GAMEINFO_VERSION_NUMBER; bss.gameInfo.platform=0;
+        bss.gameInfoLength=static_cast<u16>(WM_GAMEINFO_LENGTH_MIN+peer.gameInfo.size());
+        bss.length=static_cast<u16>((offsetof(WMBssDesc,gameInfo)+((bss.gameInfoLength+1u)&~1u))/2u);
+        bss.channel=peer.parent.channel;
+        bss.beaconPeriod=peer.parent.beaconPeriod;
+        bss.gameInfo.gameNameCount_attribute=peer.parent.attributes; bss.gameInfo.ggid=peer.ggid; bss.gameInfo.tgid=static_cast<u16>(peer.tgid);
+        bss.gameInfo.parentMaxSize=peer.parent.parentMaxSize; bss.gameInfo.childMaxSize=peer.parent.childMaxSize;
         bss.gameInfo.userGameInfoLength=static_cast<u8>(peer.gameInfo.size());
-        std::copy(peer.gameInfo.begin(),peer.gameInfo.end(),bss.gameInfo.userGameInfo);
+        if (!peer.gameInfo.empty()) std::memcpy(bss.gameInfo.userGameInfo,peer.gameInfo.data(),peer.gameInfo.size());
     }
     return static_cast<int>(found);
 }
@@ -214,7 +223,7 @@ bool RulesLocked()
 }
 bool Install()
 {
-    static const SIM_Net_Provider_t provider = {1,&Context(),Process,Beacon,StartHost,StartClient,Aid,Seat,State,Count,Players,Info,RoleChange,Join,Disconnect,Send,Scan};
+    static const SIM_Net_Provider_t provider = {2,&Context(),Process,Beacon,StartHost,StartClient,Aid,Seat,State,Count,Players,Info,RoleChange,Join,Disconnect,Send,Scan};
     if (SIM_Net_InstallProvider(&provider)) return true;
     auto& p=Context(); std::lock_guard<std::mutex> lock(p.mutex);
     p.error="Close the local wireless connection before selecting a community server."; return false;
@@ -223,14 +232,15 @@ bool Prepare()
 {
     if (!Install()) return false;
     auto* config=SIM_Config_prj_GetConfig();
-    std::string rules="community-wm-v1;cap="+std::to_string(CommunityRules_CurrentLevelCap())
+    std::string rules="community-wm-v2;cap="+std::to_string(CommunityRules_CurrentLevelCap())
         +";caps="+std::to_string(config->worldLevelCaps ? 1 : 0)
         +";60fps="+std::to_string(config->enable60fps ? 1 : 0)
         +";speed="+std::to_string(config->enable60fpsSpeedFix ? 1 : 0)
         +";walk="+std::to_string(config->walkThroughWalls ? 1 : 0)
         +";encounters="+std::to_string(config->disableRandomEncounters ? 1 : 0)
         +";run="+std::to_string(config->runFromTrainerBattles ? 1 : 0)
-        +";obedience=ot-independent;capture=wild-one-debit-v1;modern="+std::to_string(CommunityModernRules_Enabled());
+        +";obedience=ot-independent;capture=wild-one-debit-v1;modern="+std::to_string(CommunityModernRules_Enabled())
+        +";ability0110-v1="+std::to_string(CommunityAbilityUpdates_Enabled());
     const char legacy[]="pokeplatinum-pc-port-35067868-community-fairy-v1";
     std::string catalogHash=Hash(legacy,sizeof(legacy)-1);
     if (CommunityModernRules_Enabled()) {
@@ -243,6 +253,8 @@ bool Prepare()
         append(catalog->spriteData,sizeof(catalog->spriteData)); append(catalog->spriteHeights,sizeof(catalog->spriteHeights));
         append(catalog->iconPalettes,sizeof(catalog->iconPalettes)); append(catalog->formGraphics,sizeof(catalog->formGraphics));
         append(catalog->fairyMovePalette,sizeof(catalog->fairyMovePalette));
+        append(catalog->modernMoves,sizeof(catalog->modernMoves)); append(catalog->statStages,sizeof(catalog->statStages));
+        append(catalog->sideEffectScripts,sizeof(catalog->sideEffectScripts)); append(catalog->metronomeExclusions,sizeof(catalog->metronomeExclusions));
         catalogHash=Hash(bytes.data(),bytes.size());
     }
     return Online().PrepareLink(catalogHash,Hash(rules.data(),rules.size()));

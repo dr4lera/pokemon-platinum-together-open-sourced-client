@@ -1046,6 +1046,9 @@ pokeplatinum_c += files(
     'port/community_online.cpp',
     'port/community_wireless_core.cpp',
     'port/community_wireless.cpp',
+    'port/community_link_qa.cpp',
+    'port/community_link_qa_guard.cpp',
+    'port/community_link_qa_game.c',
     'port/gui_community_online.cpp',
 )
 endif

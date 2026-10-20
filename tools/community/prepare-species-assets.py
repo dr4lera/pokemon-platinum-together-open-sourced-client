@@ -201,7 +201,7 @@ def prepare(output, base_root, reference_root):
                             members=pin.reference_count, first_appended=pin.base_count))
     manifest = dict(private=True, runtime_verified=False, schema=1, archives=records,
                     dependency=dict(path=ANIMATION_PATH, members=ANIMATION_COUNT, sha256=ANIMATION_SHA256),
-                    required_features=["validated-v3-species-catalog", "bounded-species-graphics-consumers", "reviewed-sdk-port-palette-loader"],
+                    required_features=["validated-v4-species-catalog", "bounded-species-graphics-consumers", "reviewed-sdk-port-palette-loader"],
                     exclusions=["species-registration", "modern-dex-save", "modern-cries", "complete-modern-moves-and-abilities"])
     # All hashes, prefixes and resource records are validated before creating
     # any output. Never replace originals or merge the whole patch directory.

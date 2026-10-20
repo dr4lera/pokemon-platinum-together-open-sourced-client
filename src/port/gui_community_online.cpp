@@ -82,6 +82,64 @@ void CommunityOnlineMain(bool* openState)
     if (!wirelessError.empty()) ImGui::TextWrapped("%s", wirelessError.c_str());
     ImGui::Separator();
     ImGui::BeginDisabled(!ready);
+    ImGui::TextUnformatted("Server trainer profile");
+    if (snapshot.trainer.loaded) {
+        static char trainerName[11] = "";
+        static int look = 0, outfit = 0;
+        static std::string profilePlayer;
+        static std::uint64_t revision = 0, connection = 0;
+        static bool dirty = false, saveQueued = false, saveRefused = false;
+        const auto load = [&] {
+            std::snprintf(trainerName, sizeof(trainerName), "%s", snapshot.trainer.value.name.c_str());
+            look = snapshot.trainer.value.look; outfit = snapshot.trainer.value.outfit;
+            revision = snapshot.trainer.value.revision; profilePlayer = snapshot.player;
+            connection = snapshot.connections; dirty = false; saveQueued = false; saveRefused = false;
+        };
+        if (profilePlayer != snapshot.player || connection != snapshot.connections || (!dirty && revision != snapshot.trainer.value.revision)) load();
+        if (saveQueued && !snapshot.trainer.updating && !snapshot.trainer.conflict && snapshot.trainer.value.revision > revision) load();
+        ImGui::BeginDisabled(snapshot.trainer.updating);
+        dirty |= ImGui::InputText("Trainer name (10 ASCII bytes)", trainerName, sizeof(trainerName));
+        dirty |= ImGui::InputInt("Server look ID (0-255)", &look);
+        dirty |= ImGui::InputInt("Server outfit ID (0-65535)", &outfit);
+        const bool valid = trainerName[0] && look >= 0 && look <= 255 && outfit >= 0 && outfit <= 65535;
+        ImGui::BeginDisabled(!valid || !dirty);
+        if (ImGui::Button("Save trainer profile")) {
+            auto value = snapshot.trainer.value;
+            value.name = trainerName; value.look = static_cast<std::uint8_t>(look);
+            value.outfit = static_cast<std::uint16_t>(outfit); value.revision = revision;
+            saveQueued = service.UpdateTrainer(value);
+            saveRefused = !saveQueued;
+        }
+        ImGui::EndDisabled();
+        ImGui::SameLine();
+        if (ImGui::Button("Use latest profile")) { load(); service.RefreshTrainer(); }
+        ImGui::EndDisabled();
+        if (snapshot.trainer.updating) ImGui::TextUnformatted("Saving profile...");
+        if (snapshot.trainer.conflict) ImGui::TextWrapped("Profile changed elsewhere. Use latest profile before editing again.");
+        if (saveRefused) ImGui::TextWrapped("Profile could not be queued. Check the name and ID ranges, then try again.");
+        ImGui::TextWrapped("Names start with a letter or number and use letters, numbers, spaces, periods, apostrophes or hyphens. End with a letter, number or period.");
+        ImGui::TextWrapped("Look and outfit IDs are saved on this server. Their character sprites and custom art are not rendered by this client yet.");
+    } else ImGui::TextUnformatted("Waiting for trainer profile...");
+    ImGui::Separator();
+    ImGui::Text("City presence: %s", CommunityOnline::CityStateName(snapshot.city.state));
+    if (!snapshot.city.error.empty()) ImGui::TextWrapped("%s", snapshot.city.error.c_str());
+    if (snapshot.city.state == CommunityOnline::CityState::Absent) {
+        if (ImGui::Button("Join plaza presence")) service.EnterCity();
+    } else {
+        // Leave remains independent of invitations and game-link preparation.
+        if (ImGui::Button("Leave plaza presence")) service.LeaveCity();
+        if (snapshot.city.state == CommunityOnline::CityState::Present) {
+            ImGui::Text("Your server slot: %u", static_cast<unsigned>(snapshot.city.slot));
+            if (ImGui::Button("Active")) service.SetCityStatus("active");
+            ImGui::SameLine(); if (ImGui::Button("Away")) service.SetCityStatus("away");
+            for (const auto& player : snapshot.city.players) {
+                ImGui::BulletText("%s [%s] - slot %u, look %u, outfit %u", player.name.c_str(), player.status.c_str(), static_cast<unsigned>(player.slot), static_cast<unsigned>(player.appearance.look), static_cast<unsigned>(player.appearance.outfit));
+                if (player.appearance.hasArt) ImGui::TextWrapped("Custom art %s / %s (rendering unsupported)", player.appearance.art.creation.c_str(), player.appearance.art.version.c_str());
+            }
+        }
+    }
+    ImGui::TextWrapped("This panel lists authenticated plaza presence. It does not move your character or enter a city map.");
+    ImGui::Separator();
     if (snapshot.partyId.empty()) {
         if (ImGui::Button("Create party")) service.CreateParty();
         ImGui::InputText("Party code", code, sizeof(code));
@@ -93,6 +151,8 @@ void CommunityOnlineMain(bool* openState)
         if (ImGui::Button("Leave party")) service.LeaveParty();
         for (const auto& member : snapshot.members) {
             ImGui::BulletText("%s (%s)", member.name.c_str(), member.online ? "online" : "offline");
+            ImGui::Text("Server appearance: look %u, outfit %u", static_cast<unsigned>(member.appearance.look), static_cast<unsigned>(member.appearance.outfit));
+            if (member.appearance.hasArt) ImGui::TextWrapped("Custom art %s / %s (rendering unsupported)", member.appearance.art.creation.c_str(), member.appearance.art.version.c_str());
         }
     }
     const auto link = service.ReadLink();

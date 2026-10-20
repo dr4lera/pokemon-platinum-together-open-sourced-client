@@ -1,10 +1,10 @@
 # Local content catalog
 
-The original community data provider reads a bounded 29,956-byte `PTCAT03`
-runtime cache. Generate it from a user-supplied, hash-pinned 0.1.7 executable:
+The original community data provider reads a bounded 36,632-byte `PTCAT04`
+runtime cache. Generate it from a user-supplied, hash-pinned 0.1.7 executable and explicit patched move archive:
 
 ```powershell
-python tools/community/import-reference-catalog.py D:/Reference/Platinum.exe D:/PrivateRuntime/catalog.ptc
+python tools/community/import-reference-catalog.py D:/Reference/Platinum.exe D:/PrivateRuntime/catalog.ptc --move-archive D:/Reference/patch/poketool/waza/pl_waza_tbl.narc
 $env:PLATINUM_COMMUNITY_CATALOG = 'D:/PrivateRuntime/catalog.ptc'
 ```
 
@@ -13,9 +13,9 @@ artifact/version, changed table hashes and an existing output file. It reads
 the executable as data and never executes or patches it. No original data is
 included in this repository or its CI fixtures.
 
-V3 deliberately rejects V1/V2 caches; regenerate the private file with the current
+V4 deliberately rejects V1/V2/V3 caches; regenerate the private file with the current
 importer. The 48-byte header carries the selected artifact hash, exact payload
-length and CRC. The 29,908-byte payload retains the five original arrays, then
+length and CRC. The 36,584-byte payload retains the five original arrays, then
 stores 65 numeric metadata records (three little-endian u16 fields: national
 number, height and weight), 65 seven-slot evolution records (42 bytes each),
 65 sprite-animation records (89 bytes each), 65 two-face height records,
@@ -74,3 +74,14 @@ with synthetic state, checking weather2..4, day/night and level boundaries,
 priority, friendship159/160, Everstone, item evolution, all seven legacy slots,
 disabled gating and all65 modern evolution archive bypasses. These checks do not
 establish that the resulting modern species is safe to create/save or render.
+
+V4 appends374 sixteen-byte move metadata records (IDs474..847),41 twelve-byte
+stat-stage records,33 new side-effect script routes and34 Metronome exclusions.
+The archive and compiled tables are independently hash-pinned; reserved archive
+rows848..850 are excluded. The runtime parser validates effect/class/type,
+accuracy/PP/chance/range/signed-priority/padding, unique bounded stat rows,
+side-effect script IDs and unique exclusion IDs. Accessors leave destinations
+unchanged when refusing invalid inputs. Wireless compatibility includes every
+new array. These providers do not expand `MAX_MOVES`, load new scripts or enable
+unreviewed moves. Native move-specific state, damage and lifecycle hooks remain
+separate work; reusing an old effect script alone does not establish parity.

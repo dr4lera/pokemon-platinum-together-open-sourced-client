@@ -1,6 +1,14 @@
     .ifndef ASM_BATTLE_SCRIPT_INC
     .set ASM_BATTLE_SCRIPT_INC, 1
 
+    // The modern extension follows the original command table at opcode223.
+    .macro CommunityAction selector, argument, failure
+    .long BTLCMD_COMMUNITYACTION
+    .long \selector
+    .long \argument
+    .long (\failure-.) / 4 - 1
+    .endm
+
 #include "constants/battle.h"
 #include "constants/items.h"
 #include "constants/species.h"

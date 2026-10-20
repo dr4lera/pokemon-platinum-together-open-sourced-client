@@ -10,11 +10,16 @@ namespace CommunityWireless {
 constexpr unsigned MaxPeers = 4;
 constexpr unsigned MaxData = 512;
 enum class Role : std::uint8_t { Off, Parent, Child };
+struct ParentInfo {
+    std::uint16_t parentMaxSize = 0, childMaxSize = 0, beaconPeriod = 0, channel = 0, maxEntry = 15;
+    std::uint8_t attributes = 1;
+};
 struct Peer {
     std::array<std::uint8_t, 6> mac{};
     Role role = Role::Off;
     std::uint8_t aid = 0;
     std::uint32_t ggid = 0, tgid = 0;
+    ParentInfo parent;
     std::vector<std::uint8_t> gameInfo;
 };
 struct Frame { std::uint8_t destination; std::vector<std::uint8_t> bytes; };
@@ -31,7 +36,7 @@ class Core {
 public:
     bool Begin(unsigned localSeat, const std::vector<std::array<std::uint8_t, 6>>& roster);
     void End();
-    bool SetInfo(std::uint32_t ggid, std::uint32_t tgid, const std::uint8_t* bytes, unsigned size);
+    bool SetInfo(std::uint32_t ggid, std::uint32_t tgid, const std::uint8_t* bytes, unsigned size, ParentInfo parent = {});
     bool SetRole(Role role);
     bool Join(const std::uint8_t mac[6], const std::uint8_t ssid[24], std::uint32_t nonce);
     void CancelJoin();

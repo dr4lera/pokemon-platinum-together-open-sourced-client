@@ -23,16 +23,12 @@ using u8=uint8_t; using u16=uint16_t; using u32=uint32_t; using u64=uint64_t;
 using BOOL=int;
 #define TRUE 1
 #define FALSE 0
-#define WM_SIZE_CHILD_SSID 24
-#define WM_SIZE_MP_DATA_MAX 512
-#define WM_GAMEINFO_MAGIC_NUMBER 1
-#define WM_GAMEINFO_LENGTH_MIN 16
-#define WM_ATTR_FLAG_ENTRY 1
-struct WMBssDesc {u8 bssid[6];int gameInfoLength;struct {int magicNumber,gameNameCount_attribute,ggid,tgid,userGameInfoLength;u8 userGameInfo[112];} gameInfo;};
+#include <nitro/wm/common/wm.h>
 struct OSOwnerInfo {u16 nickName[10];};
 inline void OS_GetOwnerInfo(OSOwnerInfo* p){std::memset(p,0,sizeof(*p));}
 ''',
-"nitro/types.h": '#include <nitro.h>\n',
+"nitro/types.h": '#pragma once\n#include <cstdint>\nusing u8=uint8_t;using u16=uint16_t;using u32=uint32_t;using u64=uint64_t;using s8=int8_t;using s16=int16_t;using s32=int32_t;using s64=int64_t;using BOOL=int;\n',
+"nitro/os.h": '#pragma once\n#include <nitro/types.h>\nusing OSTick=u64;struct OSMutex {int opaque;};\n',
 "SDL2/SDL.h": r'''#pragma once
 #include <cstdint>
 struct SDL_mutex{}; struct SDL_sem{};

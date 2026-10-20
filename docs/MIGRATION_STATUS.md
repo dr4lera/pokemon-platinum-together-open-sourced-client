@@ -31,8 +31,8 @@ prepared, unmodified copy of the supplied game.
 | Accounts, parties, chat | Native signed adapter and real-backend fixtures pass; game UI compiles | Rendered flow and packaged HTTPS checks; friends/Inverna actors |
 | Native wireless battles/trades | Own Service, signed game-link backend and semantic WM provider implemented; two-adapter discovery/join/data/cancellation fixtures pass | Two actual source games through native battle/trade screens and interruption recovery |
 | Shared-world co-op/Inverna | User-confirmed on prepared reference clients | Source gameplay implementation and two-client parity checks |
-| Modern species, abilities, forms, moves | Strict V3 numeric catalog, early personal/learnset/evolution consumers and six Fairy moves compile and pass fixtures | Runtime graphics verification, remaining move/ability behavior, cries, registration, dex/save integration |
-| Learnset representation | Bounded decoders and V3 provider compile; all65 hash-pinned lists match offline; supplements and actual consumer fixtures pass | Full later-move behavior and runtime per-species verification |
+| Modern species, abilities, forms, moves | Strict V4 numeric catalog, early personal/learnset/evolution consumers and six Fairy moves compile and pass fixtures | Runtime graphics verification, remaining move/ability behavior, cries, registration, dex/save integration |
+| Learnset representation | Bounded decoders and V4 provider compile; all65 hash-pinned lists match offline; supplements and actual consumer fixtures pass | Full later-move behavior and runtime per-species verification |
 | Saves/trade recovery | Reference format and journal partly inspected | Own compatible IO, closed-copy migration, interruption checks |
 | Rendering, controls, audio, story | Public base engine available | Match reference behavior and chosen/custom trainer appearances |
 | 0.1.10 additions | Installed artifact independently hash-pinned; private archive comparison started | Separate code/behavior audit and tested update adapters |
@@ -68,7 +68,7 @@ acknowledgment and discard unindicated old-epoch data after cancellation. SDK
 callback recipients are fixtures; these are not two-game battle/trade evidence.
 
 The modern gate is explicitly selected before startup and remains immutable.
-Its V3 file is generated privately from the pinned reference; no catalog bytes
+Its V4 file is generated privately from the pinned reference; no catalog bytes
 or reference assets ship here. Original source-generated animation archives may
 be privately merged with only the six reviewed scripts, particle485 and icon343.
 Whole patched animation archives are not enabled by the restricted overlay.

@@ -54,6 +54,7 @@
 #include "party.h"
 #include "pc_boxes.h"
 #include "pokemon.h"
+#include "port/community_catalog.h"
 #include "port/community_modern_rules.h"
 #include "pokemon_icon.h"
 #include "pokemon_sprite.h"
@@ -312,6 +313,7 @@ static BOOL BtlCmd_CheckCurMoveIsType(BattleSystem *battleSys, BattleContext *ba
 static BOOL BtlCmd_LoadArchivedMonData(BattleSystem *battleSys, BattleContext *battleCtx);
 static BOOL BtlCmd_RefreshMonData(BattleSystem *battleSys, BattleContext *battleCtx);
 static BOOL BtlCmd_End(BattleSystem *battleSys, BattleContext *battleCtx);
+static BOOL BtlCmd_CommunityAction(BattleSystem *battleSys, BattleContext *battleCtx);
 
 static int BattleScript_Read(BattleContext *battleCtx);
 static void BattleScript_Iter(BattleContext *battleCtx, int i);
@@ -2857,6 +2859,13 @@ static BOOL BtlCmd_ChangeStatStage(BattleSystem *battleSys, BattleContext *battl
         battleCtx->scriptTemp = BATTLE_ANIMATION_STAT_BOOST;
     }
 
+    /* Queue entries of magnitude one/two use the original pointer encoding.
+     * Larger entries carry their exact delta once into this shared consumer. */
+    if (CommunityModernRules_Enabled() && battleCtx->communityStatStages.stageChange != 0) {
+        stageChange = battleCtx->communityStatStages.stageChange;
+    }
+    battleCtx->communityStatStages.stageChange = 0;
+
     if (stageChange > 0) {
         if (mon->statBoosts[BATTLE_STAT_ATTACK + statOffset] == MAX_STAT_STAGE) {
             battleCtx->battleStatusMask |= SYSCTL_FAIL_STAT_STAGE_CHANGE;
@@ -2912,7 +2921,9 @@ static BOOL BtlCmd_ChangeStatStage(BattleSystem *battleSys, BattleContext *battl
 
                     result = 1;
                 } else if (AbilityBlocksSpecificStatReduction(battleCtx, statOffset, ABILITY_KEEN_EYE, BATTLE_STAT_ACCURACY)
-                    || AbilityBlocksSpecificStatReduction(battleCtx, statOffset, ABILITY_HYPER_CUTTER, BATTLE_STAT_ATTACK)) {
+                    || AbilityBlocksSpecificStatReduction(battleCtx, statOffset, ABILITY_HYPER_CUTTER, BATTLE_STAT_ATTACK)
+                    || (CommunityAbilityUpdates_Enabled()
+                        && AbilityBlocksSpecificStatReduction(battleCtx, statOffset, ABILITY_BIG_PECKS, BATTLE_STAT_DEFENSE))) {
                     if (battleCtx->sideEffectType == SIDE_EFFECT_TYPE_ABILITY) {
                         SetupNicknameAbilityNicknameAbilityMsg(battleCtx, BattleStrings_Text_PokemonsAbilitySuppressedPokemonsAbility_AllyAlly); // "{0}'s {1} suppressed {2}'s {3}!"
                     } else {
@@ -9476,6 +9487,200 @@ static BOOL BtlCmd_RefreshMonData(BattleSystem *battleSys, BattleContext *battle
  * @param battleCtx
  * @return FALSE
  */
+static BOOL CommunityStatStage_Alive(BattleContext *battleCtx, int battler)
+{
+    return battler >= 0 && battler < MAX_BATTLERS && battleCtx->battleMons[battler].curHP > 0;
+}
+
+static BOOL CommunityStatStage_Predicate(BattleContext *battleCtx, int battler, unsigned predicate)
+{
+    switch (predicate) {
+    case 1:
+        if (MON_IS_NOT_TYPE(battler, TYPE_GRASS)) {
+            return FALSE;
+        }
+        if ((battleCtx->fieldConditionsMask & FIELD_CONDITION_GRAVITY)
+            || (battleCtx->battleMons[battler].moveEffectsMask & MOVE_EFFECT_INGRAIN)
+            || Battler_HeldItemEffect(battleCtx, battler) == HOLD_EFFECT_SPEED_DOWN_GROUNDED) {
+            return TRUE;
+        }
+        /* Modern forced grounding/levitation producers are not admitted yet.
+         * This path covers the existing engine's representable ground state. */
+        return MON_IS_NOT_TYPE(battler, TYPE_FLYING)
+            && Battler_Ability(battleCtx, battler) != ABILITY_LEVITATE
+            && !(battleCtx->battleMons[battler].moveEffectsMask & MOVE_EFFECT_MAGNET_RISE);
+    case 2:
+        return Battler_Ability(battleCtx, battler) == ABILITY_PLUS
+            || Battler_Ability(battleCtx, battler) == ABILITY_MINUS;
+    case 3:
+        return (battleCtx->battleMons[battler].status & MON_CONDITION_ANY_POISON) != 0;
+    default:
+        return TRUE;
+    }
+}
+
+static BOOL CommunityStatStage_Build(BattleSystem *battleSys, BattleContext *battleCtx)
+{
+    CommunityStatStageQueue *queue = &battleCtx->communityStatStages;
+    unsigned move = queue->overrideMove ? queue->overrideMove : battleCtx->moveCur;
+    u8 row[12], targets[MAX_BATTLERS];
+    unsigned count = 0, available = 0;
+    BOOL canChange = FALSE, hasIncrease = FALSE;
+    int attacker = battleCtx->attacker;
+    int battlers = BattleSystem_GetMaxBattlers(battleSys);
+    int partner = BattleSystem_GetPartner(battleSys, attacker);
+
+    queue->count = queue->cursor = queue->stageChange = queue->previousDirection = 0;
+    queue->previousBattler = 0xff;
+    queue->overrideMove = 0;
+    queue->sourceMove = battleCtx->moveCur;
+    if (battlers < 1 || battlers > MAX_BATTLERS
+        || !CommunityCatalog_StatStage(CommunityCatalog_Runtime(), move, row)) {
+        battleCtx->moveStatusFlags |= MOVE_STATUS_FAILED;
+        return FALSE;
+    }
+    /* This family must not repeat its stat effect on later multi-hit strikes. */
+    if (battleCtx->moveCur == 727 && battleCtx->multiHitCounter > 1
+        && CommunityStatStage_Alive(battleCtx, battleCtx->defender)) {
+        return FALSE;
+    }
+    switch (row[2]) {
+    case 0: targets[count++] = attacker; break;
+    case 1: targets[count++] = battleCtx->sideEffectMon; break;
+    case 2:
+        if (partner >= 0 && partner != attacker && partner < battlers) {
+            targets[count++] = partner;
+        }
+        break;
+    case 3:
+        targets[count++] = attacker;
+        if (partner >= 0 && partner != attacker && partner < battlers) {
+            targets[count++] = partner;
+        }
+        break;
+    case 4:
+        for (int i = 0; i < battlers; i++) {
+            targets[count++] = battleCtx->monSpeedOrder[i];
+        }
+        break;
+    }
+    for (unsigned i = 0; i < count; i++) {
+        int battler = targets[i];
+        if (!CommunityStatStage_Alive(battleCtx, battler)
+            || !CommunityStatStage_Predicate(battleCtx, battler, row[3])) {
+            continue;
+        }
+        targets[available++] = battler;
+        for (unsigned stat = 0; stat < 7; stat++) {
+            int change = (s8)row[4 + stat];
+            if (change == 0 || queue->count == COMMUNITY_STAT_QUEUE_CAPACITY) {
+                continue;
+            }
+            CommunityStatStageEntry *entry = &queue->entries[queue->count++];
+            entry->battler = battler;
+            entry->stat = stat + BATTLE_STAT_ATTACK;
+            entry->change = change;
+            hasIncrease |= change > 0;
+            int stage = battleCtx->battleMons[battler].statBoosts[entry->stat];
+            canChange |= change > 0 ? stage < MAX_STAT_STAGE : stage > MIN_STAT_STAGE;
+        }
+    }
+    if (available == 0) {
+        battleCtx->moveStatusFlags |= MOVE_STATUS_FAILED;
+        return FALSE;
+    }
+    if (!canChange) {
+        battleCtx->msgBuffer.id = hasIncrease ? BattleStrings_Text_PokemonsStatsWontGoAnyHigher_Ally
+                                              : BattleStrings_Text_PokemonsStatsWontGoAnyLower_Ally;
+        battleCtx->msgBuffer.tags = TAG_NICKNAME;
+        battleCtx->msgBuffer.params[0] = BattleSystem_NicknameTag(battleCtx, targets[0]);
+        queue->count = 0;
+        return FALSE;
+    }
+    return TRUE;
+}
+
+static BOOL CommunityStatStage_Next(BattleContext *battleCtx)
+{
+    CommunityStatStageQueue *queue = &battleCtx->communityStatStages;
+    queue->stageChange = 0;
+    if (queue->sourceMove != battleCtx->moveCur || queue->count > COMMUNITY_STAT_QUEUE_CAPACITY) {
+        queue->count = queue->cursor = 0;
+        return FALSE;
+    }
+    if (queue->cursor >= queue->count) {
+        return FALSE;
+    }
+    const CommunityStatStageEntry *entry = &queue->entries[queue->cursor++];
+    if (entry->battler >= MAX_BATTLERS || entry->stat < BATTLE_STAT_ATTACK
+        || entry->stat > BATTLE_STAT_EVASION || entry->change == 0) {
+        queue->count = queue->cursor = 0;
+        battleCtx->moveStatusFlags |= MOVE_STATUS_FAILED;
+        return FALSE;
+    }
+    int magnitude = entry->change < 0 ? -entry->change : entry->change;
+    int direction = entry->change < 0 ? -1 : 1;
+    int pointer = direction < 0
+        ? (magnitude < 2 ? MOVE_SUBSCRIPT_PTR_ATTACK_DOWN_1_STAGE : MOVE_SUBSCRIPT_PTR_ATTACK_DOWN_2_STAGES)
+        : (magnitude < 2 ? MOVE_SUBSCRIPT_PTR_ATTACK_UP_1_STAGE : MOVE_SUBSCRIPT_PTR_ATTACK_UP_2_STAGES);
+    battleCtx->sideEffectParam = pointer + entry->stat - BATTLE_STAT_ATTACK;
+    if (magnitude >= 3) {
+        queue->stageChange = entry->change;
+    }
+    if (direction != queue->previousDirection || entry->battler != queue->previousBattler) {
+        battleCtx->battleStatusMask2 &= ~SYSCTL_UPDATE_STAT_STAGES;
+        battleCtx->battleStatusMask &= ~SYSCTL_TURN_OFF_MESSAGES;
+    }
+    queue->previousDirection = direction;
+    queue->previousBattler = entry->battler;
+    battleCtx->sideEffectMon = entry->battler;
+    return TRUE;
+}
+
+/* Bounded first stage of the extension. Other selectors fail explicitly until
+ * their engine state and callbacks have been implemented and admitted. */
+static BOOL BtlCmd_CommunityAction(BattleSystem *battleSys, BattleContext *battleCtx)
+{
+    int selector, argument, failure, result = FALSE;
+    if (battleCtx->scriptCursor < 0 || battleCtx->scriptCursor > BATTLE_SCRIPT_SIZE_MAX - 4) {
+        battleCtx->moveStatusFlags |= MOVE_STATUS_FAILED;
+        battleCtx->communityStatStages.count = battleCtx->communityStatStages.stageChange = 0;
+        return BtlCmd_End(battleSys, battleCtx);
+    }
+    BattleScript_Iter(battleCtx, 1);
+    selector = BattleScript_Read(battleCtx);
+    argument = BattleScript_Read(battleCtx);
+    failure = BattleScript_Read(battleCtx);
+    (void)argument;
+    if (CommunityModernRules_Enabled()) {
+        switch (selector) {
+        case 0: result = CommunityStatStage_Build(battleSys, battleCtx); break;
+        case 1: result = CommunityStatStage_Next(battleCtx); break;
+        case 5: {
+            u8 row[12];
+            result = CommunityCatalog_StatStage(CommunityCatalog_Runtime(), battleCtx->moveCur, row);
+            break;
+        }
+        default:
+            battleCtx->moveStatusFlags |= MOVE_STATUS_FAILED;
+            battleCtx->communityStatStages.count = battleCtx->communityStatStages.stageChange = 0;
+            break;
+        }
+    } else {
+        battleCtx->moveStatusFlags |= MOVE_STATUS_FAILED;
+        battleCtx->communityStatStages.count = battleCtx->communityStatStages.stageChange = 0;
+    }
+    if (!result) {
+        if (failure < -battleCtx->scriptCursor || failure >= BATTLE_SCRIPT_SIZE_MAX - battleCtx->scriptCursor) {
+            battleCtx->moveStatusFlags |= MOVE_STATUS_FAILED;
+            battleCtx->communityStatStages.count = battleCtx->communityStatStages.stageChange = 0;
+            return BtlCmd_End(battleSys, battleCtx);
+        }
+        BattleScript_Iter(battleCtx, failure);
+    }
+    return FALSE;
+}
+
 static BOOL BtlCmd_End(BattleSystem *battleSys, BattleContext *battleCtx)
 {
     battleCtx->battleProgressFlag = TRUE;

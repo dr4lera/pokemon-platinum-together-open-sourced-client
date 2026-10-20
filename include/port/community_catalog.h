@@ -16,8 +16,14 @@
 #define COMMUNITY_SPECIES_SPRITE_BYTES 89
 #define COMMUNITY_FORM_GRAPHICS_COUNT 4
 #define COMMUNITY_FAIRY_MOVE_PALETTE_BYTES 32
+#define COMMUNITY_MODERN_MOVE_FIRST 474
+#define COMMUNITY_MODERN_MOVE_COUNT 374
+#define COMMUNITY_STAT_STAGE_COUNT 41
+#define COMMUNITY_SIDE_EFFECT_FIRST 145
+#define COMMUNITY_SIDE_EFFECT_COUNT 33
+#define COMMUNITY_METRONOME_EXCLUSION_COUNT 34
 #define COMMUNITY_CATALOG_HEADER_BYTES 48
-#define COMMUNITY_CATALOG_PAYLOAD_BYTES (COMMUNITY_MODERN_SPECIES_COUNT * (COMMUNITY_PERSONAL_BYTES + COMMUNITY_LEARNSET_MODERN_STORAGE_BYTES + COMMUNITY_SPECIES_METADATA_BYTES + COMMUNITY_EVOLUTION_BYTES + COMMUNITY_SPECIES_SPRITE_BYTES + 2 + 1) + COMMUNITY_SUPPLEMENT_COUNT * 6 + COMMUNITY_TYPE_OVERRIDE_COUNT * 4 + COMMUNITY_MOVE_OVERRIDE_COUNT * 10 + COMMUNITY_FORM_GRAPHICS_COUNT * 6 + COMMUNITY_FAIRY_MOVE_PALETTE_BYTES)
+#define COMMUNITY_CATALOG_PAYLOAD_BYTES (COMMUNITY_MODERN_SPECIES_COUNT * (COMMUNITY_PERSONAL_BYTES + COMMUNITY_LEARNSET_MODERN_STORAGE_BYTES + COMMUNITY_SPECIES_METADATA_BYTES + COMMUNITY_EVOLUTION_BYTES + COMMUNITY_SPECIES_SPRITE_BYTES + 2 + 1) + COMMUNITY_SUPPLEMENT_COUNT * 6 + COMMUNITY_TYPE_OVERRIDE_COUNT * 4 + COMMUNITY_MOVE_OVERRIDE_COUNT * 10 + COMMUNITY_FORM_GRAPHICS_COUNT * 6 + COMMUNITY_FAIRY_MOVE_PALETTE_BYTES + COMMUNITY_MODERN_MOVE_COUNT * 16 + COMMUNITY_STAT_STAGE_COUNT * 12 + COMMUNITY_SIDE_EFFECT_COUNT * 4 + COMMUNITY_METRONOME_EXCLUSION_COUNT * 2)
 #define COMMUNITY_CATALOG_FILE_BYTES (COMMUNITY_CATALOG_HEADER_BYTES + COMMUNITY_CATALOG_PAYLOAD_BYTES)
 
 typedef struct CommunityCatalog {
@@ -34,6 +40,10 @@ typedef struct CommunityCatalog {
     uint8_t iconPalettes[COMMUNITY_MODERN_SPECIES_COUNT];
     uint8_t formGraphics[COMMUNITY_FORM_GRAPHICS_COUNT][6];
     uint8_t fairyMovePalette[COMMUNITY_FAIRY_MOVE_PALETTE_BYTES];
+    uint8_t modernMoves[COMMUNITY_MODERN_MOVE_COUNT][16];
+    uint8_t statStages[COMMUNITY_STAT_STAGE_COUNT][12];
+    uint8_t sideEffectScripts[COMMUNITY_SIDE_EFFECT_COUNT][4];
+    uint8_t metronomeExclusions[COMMUNITY_METRONOME_EXCLUSION_COUNT][2];
 } CommunityCatalog;
 
 typedef struct CommunitySpeciesMetadata {
@@ -63,6 +73,12 @@ int CommunityCatalog_SpriteHeight(const CommunityCatalog *catalog, unsigned spec
 int CommunityCatalog_SpriteIndex(const CommunityCatalog *catalog, unsigned species, unsigned form, unsigned *out);
 int CommunityCatalog_Icon(const CommunityCatalog *catalog, unsigned species, unsigned *archiveIndex, uint8_t *palette);
 int CommunityCatalog_FairyMovePalette(const CommunityCatalog *catalog, uint8_t out[COMMUNITY_FAIRY_MOVE_PALETTE_BYTES]);
+/* Numeric metadata only: these do not admit new scripts or expand MAX_MOVES.
+ * Full move-specific engine behavior must be reviewed separately. */
+int CommunityCatalog_ModernMove(const CommunityCatalog *catalog, unsigned move, uint8_t out[16]);
+int CommunityCatalog_StatStage(const CommunityCatalog *catalog, unsigned move, uint8_t out[12]);
+int CommunityCatalog_SideEffectScript(const CommunityCatalog *catalog, unsigned pointer, unsigned *out);
+int CommunityCatalog_MetronomeExcluded(const CommunityCatalog *catalog, unsigned move);
 
 /* Game-thread-only, lazy, immutable. Explicit file selection; no automatic
  * discovery of an installed game or access to its save/profile directories. */

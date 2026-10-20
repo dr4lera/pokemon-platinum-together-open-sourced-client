@@ -102,29 +102,31 @@ int main(){
     Reset();net.state=SIM_NET_STATE_CLIENT;net.curPlayer.id=2;net.peerList[0]=&peers[1];peers[1].data=&net.playerList[0];SIM_Net_PlayerListPacket_t list{};list.common.cmd=SIM_NET_MGMTPACKETCMD_PLAYER_LIST;list.numPlayers=2;for(int i=0;i<16;++i)list.playerList[i].id=i;
     Dispatch(Packet(list),SIM_NET_CHANNEL_MGMT);assert(net.playerList[1].id==1&&packets.empty());
     Reset();assert(packets.empty());
-    struct ProviderTest { unsigned calls=0; int ggid=-1; SIM_Net_MPState_t role=SIM_NET_MPSTATE_OFF; SIM_Net_Player_t players[16]{}; } fixture;
-    SIM_Net_Provider_t provider{1,&fixture,
+    struct ProviderTest { unsigned calls=0; int ggid=-1; SIM_Net_MPState_t role=SIM_NET_MPSTATE_OFF; SIM_Net_Player_t players[16]{}; SIM_Net_ParentInfo_t metadata{}; } fixture;
+    SIM_Net_Provider_t provider{2,&fixture,
         [](void* p){++static_cast<ProviderTest*>(p)->calls;},
         [](void* p){++static_cast<ProviderTest*>(p)->calls;},
         [](void*)->BOOL{return TRUE;}, [](void*,const char* address)->BOOL{return std::strcmp(address,"fixture")==0;},
         [](void*){return 7;}, [](void*){return 3;}, [](void*){return SIM_NET_STATE_CLIENT;}, [](void*){return 4;},
         [](void* p)->const SIM_Net_Player_t*{return static_cast<ProviderTest*>(p)->players;},
-        [](void* p,int ggid,int,const u8*,int){static_cast<ProviderTest*>(p)->ggid=ggid;},
+        [](void* p,int ggid,int,const u8*,int,const SIM_Net_ParentInfo_t* metadata){auto* f=static_cast<ProviderTest*>(p);f->ggid=ggid;assert(metadata);f->metadata=*metadata;},
         [](void* p,SIM_Net_MPState_t role){static_cast<ProviderTest*>(p)->role=role;},
         [](void*,const u8*,const u8*)->BOOL{return TRUE;},
         [](void*,u16 mask,u16* result)->BOOL{if(result)*result=mask;return TRUE;},
         [](void*,u16,u8,const u8*,int)->BOOL{return TRUE;},
         [](void*,WMBssDesc*){return 2;}};
+    assert(!SIM_Net_HasProvider());SIM_Net_ParentInfo_t parentMetadata{192,38,222,6,1,WM_ATTR_FLAG_ENTRY};SIM_Net_SetParentInfo(&parentMetadata);
     assert(!SIM_Net_InstallProvider(nullptr) && !SIM_Net_InstallProvider(&provider));
     net.state=SIM_NET_STATE_DISCONNECTED;net.enetHost=nullptr;net.curPlayer.ggid=91;
-    provider.version=2;assert(!SIM_Net_InstallProvider(&provider));provider.version=1;
-    assert(SIM_Net_InstallProvider(&provider) && fixture.ggid==91 && fixture.role==SIM_NET_MPSTATE_PARENT);
+    provider.version=1;assert(!SIM_Net_InstallProvider(&provider));provider.version=2;
+    assert(SIM_Net_InstallProvider(&provider) && fixture.ggid==91 && fixture.role==SIM_NET_MPSTATE_PARENT&&SIM_Net_HasProvider()&&fixture.metadata.parentMaxSize==192&&fixture.metadata.childMaxSize==38&&fixture.metadata.beaconPeriod==222&&fixture.metadata.channel==6&&fixture.metadata.maxEntry==1&&fixture.metadata.attributes==WM_ATTR_FLAG_ENTRY);
     assert(SIM_Net_InstallProvider(&provider));auto another=provider;assert(!SIM_Net_InstallProvider(&another));
     SIM_Net_Process();SIM_Net_SendBeaconIndication();assert(fixture.calls==2);
     char address[]="fixture";assert(SIM_Net_StartHost()&&SIM_Net_StartClient(address));
     assert(SIM_Net_GetAID()==7 && SIM_Net_GetCurrentPlayerID()==3 && SIM_Net_GetCurrentState()==SIM_NET_STATE_CLIENT && SIM_Net_GetPlayerCount()==4 && SIM_Net_GetPlayerList()==fixture.players);
+    parentMetadata.parentMaxSize=128;parentMetadata.maxEntry=3;SIM_Net_SetParentInfo(&parentMetadata);
     SIM_Net_SetGameInfo(42,0,nullptr,0);SIM_Net_SetMPState(SIM_NET_MPSTATE_CHILD);
-    assert(fixture.ggid==42 && fixture.role==SIM_NET_MPSTATE_CHILD && SIM_Net_JoinMP(nullptr,nullptr));
+    assert(fixture.ggid==42 && fixture.metadata.parentMaxSize==128&&fixture.metadata.maxEntry==3&&fixture.role==SIM_NET_MPSTATE_CHILD && SIM_Net_JoinMP(nullptr,nullptr));
     u16 result=0;assert(SIM_Net_DisconnectMP(17,&result)&&result==17&&SIM_Net_SendMPData(1,0,nullptr,0));
     assert(SIM_Net_Scan(nullptr)==2);
     std::puts("Actual wireless parser and provider routing: bounds, peer binding, callback/ack/release ownership, duplicate joins, AID transitions, send cleanup, explicit one-way provider installation and all WM dispatch paths passed.");

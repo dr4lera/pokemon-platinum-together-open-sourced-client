@@ -37,6 +37,9 @@
 #include "port/sim_config_prj.h"
 #ifdef PLATINUM_COMMUNITY_CLIENT
 #include "port/community_qa.h"
+#ifdef SDK_BUILD_WIN64
+#include "port/community_link_qa.h"
+#endif
 #endif
 #ifdef SDK_BUILD_LINUX
 #include "port/sim_icon.h"
@@ -95,6 +98,9 @@ void NitroMain(void)
     Font_InitManager(FONT_UNOWN, HEAP_ID_APPLICATION);
 
     sApplication.args.unk_00 = -1;
+#if defined(PLATINUM_COMMUNITY_CLIENT) && defined(SDK_BUILD_WIN64)
+    CommunityLinkQA_Preflight();
+#endif
     sApplication.args.saveData = SaveData_Init();
 
     SoundSystem_Init(SaveData_GetChatotCry(sApplication.args.saveData), SaveData_GetOptions(sApplication.args.saveData));
@@ -105,7 +111,11 @@ void NitroMain(void)
     }
 
 #ifdef PLATINUM_COMMUNITY_CLIENT
+#ifdef SDK_BUILD_WIN64
+    if (!CommunityLinkQA_TryStart(sApplication.args.saveData) && !CommunityQA_TryStart(sApplication.args.saveData))
+#else
     if (!CommunityQA_TryStart(sApplication.args.saveData))
+#endif
 #endif
     {
         if (SaveData_BackupExists(sApplication.args.saveData) == FALSE) {

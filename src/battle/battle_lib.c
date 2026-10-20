@@ -27,6 +27,7 @@
 #include "battle/battle_mon.h"
 #include "battle/battle_system.h"
 #include "battle/common.h"
+#include "battle/community_ability_rules.h"
 
 #include "charcode_util.h"
 #include "comm_manager.h"
@@ -39,6 +40,7 @@
 #include "pokedex_data_index.h"
 #include "pokedex_heightweight.h"
 #include "pokemon.h"
+#include "port/community_catalog.h"
 #include "port/community_modern_rules.h"
 #include "string_gf.h"
 #include "trainer_data.h"
@@ -1186,6 +1188,16 @@ static inline int CompareSpeed_ApplySimple(BattleContext *battleCtx, int battler
     return stage;
 }
 
+static int CommunityAbility_MovePriority(BattleContext *battleCtx, int battler, unsigned move, int priority)
+{
+    if (CommunityAbilityUpdates_Enabled() && move > MOVE_NONE && move < MAX_MOVES
+        && MOVE_DATA(move).class == CLASS_STATUS
+        && Battler_Ability(battleCtx, battler) == ABILITY_PRANKSTER) {
+        priority++;
+    }
+    return priority;
+}
+
 u8 BattleSystem_CompareBattlerSpeed(BattleSystem *battleSys, BattleContext *battleCtx, int battler1, int battler2, BOOL ignoreQuickClaw)
 {
     u8 result = COMPARE_SPEED_FASTER;
@@ -1397,6 +1409,8 @@ u8 BattleSystem_CompareBattlerSpeed(BattleSystem *battleSys, BattleContext *batt
 
         battler1Priority = MOVE_DATA(battler1Move).priority;
         battler2Priority = MOVE_DATA(battler2Move).priority;
+        battler1Priority = CommunityAbility_MovePriority(battleCtx, battler1, battler1Move, battler1Priority);
+        battler2Priority = CommunityAbility_MovePriority(battleCtx, battler2, battler2Move, battler2Priority);
     }
 
     if (battler1Priority == battler2Priority) {
@@ -1736,7 +1750,7 @@ void BattleSystem_CheckRedirectionAbilities(BattleSystem *battleSys, BattleConte
 
     if (battleCtx->defender == BATTLER_NONE
         || Battler_Ability(battleCtx, attacker) == ABILITY_NORMALIZE
-        || Battler_Ability(battleCtx, attacker) == ABILITY_MOLD_BREAKER) {
+        || CommunityAbility_IgnoresDefenses(Battler_Ability(battleCtx, attacker))) {
         return;
     }
 
@@ -1974,6 +1988,7 @@ BOOL BattleSystem_CheckTrainerMessage(BattleSystem *battleSys, BattleContext *ba
 
 void BattleContext_Init(BattleContext *battleCtx)
 {
+    memset(&battleCtx->communityStatStages, 0, sizeof(battleCtx->communityStatStages));
     battleCtx->damage = 0;
     battleCtx->criticalMul = 1;
     battleCtx->criticalBoosts = 0;
@@ -2838,7 +2853,7 @@ void BattleSystem_CalcEffectiveness(BattleContext *battleCtx, int move, int inTy
         moveType = MOVE_DATA(move).type;
     }
 
-    if (attackerAbility != ABILITY_MOLD_BREAKER
+    if (!CommunityAbility_IgnoresDefenses(attackerAbility)
         && defenderAbility == ABILITY_LEVITATE
         && moveType == TYPE_GROUND
         && (battleCtx->fieldConditionsMask & FIELD_CONDITION_GRAVITY) == FALSE
@@ -2874,7 +2889,7 @@ void BattleSystem_CalcEffectiveness(BattleContext *battleCtx, int move, int inTy
         }
     }
 
-    if (attackerAbility != ABILITY_MOLD_BREAKER
+    if (!CommunityAbility_IgnoresDefenses(attackerAbility)
         && defenderAbility == ABILITY_WONDER_GUARD
         && MoveIsOnDamagingTurn(battleCtx, move)
         && ((*moveStatusMask & MOVE_STATUS_SUPER_EFFECTIVE) == FALSE
@@ -3252,7 +3267,7 @@ BOOL Battler_IgnorableAbility(BattleContext *battleCtx, int attacker, int defend
 {
     BOOL result = FALSE;
 
-    if (Battler_Ability(battleCtx, attacker) != ABILITY_MOLD_BREAKER) {
+    if (!CommunityAbility_IgnoresDefenses(Battler_Ability(battleCtx, attacker))) {
         if (Battler_Ability(battleCtx, defender) == ability) {
             result = TRUE;
         }
@@ -6742,6 +6757,52 @@ typedef struct DamageCalcParams {
     u8 type2;
 } DamageCalcParams;
 
+static BOOL CommunityAbility_IsBiteMove(unsigned move)
+{
+    switch (move) {
+    case MOVE_BITE:
+    case MOVE_HYPER_FANG:
+    case MOVE_CRUNCH:
+    case MOVE_POISON_FANG:
+    case MOVE_THUNDER_FANG:
+    case MOVE_ICE_FANG:
+    case MOVE_FIRE_FANG:
+    case 660:
+    case 692:
+    case 701:
+        return TRUE;
+    default:
+        return FALSE;
+    }
+}
+
+static int CommunityAbility_AdjustPower(BattleSystem *battleSys, BattleContext *battleCtx,
+    unsigned move, unsigned type, int power, int attacker)
+{
+    if (!CommunityAbilityUpdates_Enabled()) {
+        return power;
+    }
+    if (Battler_Ability(battleCtx, attacker) == ABILITY_STRONG_JAW && CommunityAbility_IsBiteMove(move)) {
+        power = power * 15 / 10;
+    }
+    if ((type == TYPE_DARK && BattleSystem_CountAbility(battleSys, battleCtx, COUNT_ALIVE_BATTLERS, attacker, ABILITY_DARK_AURA))
+        || (type == TYPE_FAIRY && BattleSystem_CountAbility(battleSys, battleCtx, COUNT_ALIVE_BATTLERS, attacker, ABILITY_FAIRY_AURA))) {
+        power = power * 4 / 3;
+    }
+    return power;
+}
+
+int CommunityAbility_AdjustAccuracy(BattleSystem *battleSys, BattleContext *battleCtx, int attacker, int accuracy)
+{
+    if (CommunityAbilityUpdates_Enabled()) {
+        int bearers = BattleSystem_CountAbility(battleSys, battleCtx, COUNT_ALIVE_BATTLERS_OUR_SIDE, attacker, ABILITY_VICTORY_STAR);
+        for (int i = 0; i < bearers; i++) {
+            accuracy = accuracy * 110 / 100;
+        }
+    }
+    return accuracy;
+}
+
 int BattleSystem_CalcMoveDamage(BattleSystem *battleSys,
     BattleContext *battleCtx,
     int move,
@@ -6827,6 +6888,8 @@ int BattleSystem_CalcMoveDamage(BattleSystem *battleSys,
     } else {
         moveType = inType & 0x3F;
     }
+
+    movePower = CommunityAbility_AdjustPower(battleSys, battleCtx, move, moveType, movePower, attacker);
 
     GF_ASSERT(battleCtx->powerMul >= 10);
     movePower = movePower * battleCtx->powerMul / 10;
@@ -7078,7 +7141,7 @@ int BattleSystem_CalcMoveDamage(BattleSystem *battleSys,
         }
 
         if ((fieldConditions & FIELD_CONDITION_SUNNY)
-            && Battler_Ability(battleCtx, attacker) != ABILITY_MOLD_BREAKER
+            && !CommunityAbility_IgnoresDefenses(Battler_Ability(battleCtx, attacker))
             && BattleSystem_CountAbility(battleSys, battleCtx, COUNT_ALIVE_BATTLERS_OUR_SIDE, defender, ABILITY_FLOWER_GIFT)) {
             spDefenseStat = spDefenseStat * 15 / 10;
         }
@@ -7666,9 +7729,18 @@ static int MapSideEffectToSubscript(BattleContext *battleCtx, enum BattleSideEff
         battleCtx->sideEffectMon = 0;
     }
 
-    GF_ASSERT(NELEMS(sSideEffectSubscripts) > (effect & MOVE_SIDE_EFFECT_SUBSCRIPT_POINTER));
+    unsigned pointer = effect & MOVE_SIDE_EFFECT_SUBSCRIPT_POINTER;
+    if (pointer >= NELEMS(sSideEffectSubscripts)) {
+        unsigned script;
+        if (CommunityModernRules_Enabled()
+            && CommunityCatalog_SideEffectScript(CommunityCatalog_Runtime(), pointer, &script)) {
+            return script;
+        }
+        battleCtx->moveStatusFlags |= MOVE_STATUS_FAILED;
+        return subscript_but_it_failed;
+    }
 
-    return sSideEffectSubscripts[effect & MOVE_SIDE_EFFECT_SUBSCRIPT_POINTER];
+    return sSideEffectSubscripts[pointer];
 }
 
 /**

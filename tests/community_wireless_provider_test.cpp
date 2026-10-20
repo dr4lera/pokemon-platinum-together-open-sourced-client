@@ -49,6 +49,7 @@ extern "C" BOOL SIM_Net_InstallProvider(const SIM_Net_Provider_t* provider){inst
 extern "C" SIM_Config_prj_type* SIM_Config_prj_GetConfig(){return &config;}
 extern "C" int CommunityRules_CurrentLevelCap(){return 50;}
 extern "C" int CommunityModernRules_Enabled(){return 0;}
+extern "C" int CommunityAbilityUpdates_Enabled(){return 0;}
 extern "C" const CommunityCatalog* CommunityCatalog_Runtime(){static const CommunityCatalog catalog{};return &catalog;}
 extern "C" void WMSP_Indicate(SIM_WMSP_Indicate_t* indication){
     Require(recipient&&indication&&indication->dataLen>=0,"invalid callback recipient");std::lock_guard<std::mutex> lock(recipient->mutex);Require(!recipient->pendingValid,"callback replaced before acknowledgment");recipient->pending=*indication;recipient->pendingValid=true;recipient->ack=false;recipient->changed.notify_all();
@@ -67,11 +68,15 @@ int main(int argc,char** argv){try{
     Require(p.online.Connect(options),"first adapter refused connect");options.profileDirectory=std::string(argv[3])+"/guest";options.username="WMGuest";Require(q.online.Connect(options),"second adapter refused connect");
     Wait([&]{auto x=p.online.Read(),y=q.online.Read();if(x.state==CommunityOnline::State::Failed||y.state==CommunityOnline::State::Failed)throw std::runtime_error(x.error+" "+y.error);return x.state==CommunityOnline::State::Ready&&y.state==CommunityOnline::State::Ready;},"accounts did not authenticate");
     Require(p.online.CreateParty(),"party create refused");Wait([&]{return !p.online.Read().partyCode.empty();},"party missing");Require(q.online.JoinParty(p.online.Read().partyCode),"party join refused");Wait([&]{return p.online.Read().members.size()==2&&q.online.Read().members.size()==2;},"party roster missing");
-    Require(CommunityWireless::Install()&&installed&&installed->version==1&&installed->process==CommunityWireless::Process,"actual provider table not registered");
-    const std::vector<u8> gameInfo{3,1,4,1,5,9};CommunityWireless::Info(&q,0x12345678,0x2345,gameInfo.data(),static_cast<int>(gameInfo.size()));CommunityWireless::RoleChange(&q,SIM_NET_MPSTATE_PARENT);
+    static_assert(sizeof(((WMGameInfo*)nullptr)->userGameInfo[0])==2,"must compile actual SDK word-array ABI");
+    Require(CommunityWireless::Install()&&installed&&installed->version==2&&installed->process==CommunityWireless::Process,"actual provider table not registered");
+    const std::vector<u8> gameInfo{3,1,4,1,5,9};
+    const SIM_Net_ParentInfo_t parentInfo{512,128,120,11,1,WM_ATTR_FLAG_ENTRY};
+    CommunityWireless::Info(&q,0x12345678,0x2345,gameInfo.data(),static_cast<int>(gameInfo.size()),&parentInfo);CommunityWireless::RoleChange(&q,SIM_NET_MPSTATE_PARENT);
     Pumps pump(p,q,a,b);Prepare(p,q);
     WMBssDesc scan[4]{};Wait([&]{return CommunityWireless::Scan(&p,scan)==1;},"parent not discovered");
-    Require(CommunityWireless::Seat(&p)==0&&CommunityWireless::Seat(&q)==1&&CommunityWireless::Aid(&q)==0,"routing seat incorrectly selected DS parent");Require(scan[0].gameInfo.ggid==0x12345678&&scan[0].gameInfo.tgid==0x2345&&scan[0].gameInfo.userGameInfoLength==gameInfo.size()&&std::equal(gameInfo.begin(),gameInfo.end(),scan[0].gameInfo.userGameInfo),"scan metadata changed");
+    Require(CommunityWireless::Seat(&p)==0&&CommunityWireless::Seat(&q)==1&&CommunityWireless::Aid(&q)==0,"routing seat incorrectly selected DS parent");Require(scan[0].gameInfo.ggid==0x12345678&&scan[0].gameInfo.tgid==0x2345&&scan[0].gameInfo.userGameInfoLength==gameInfo.size()&&!std::memcmp(gameInfo.data(),scan[0].gameInfo.userGameInfo,gameInfo.size()),"scan metadata changed");
+    Require(scan[0].gameInfoLength==16+gameInfo.size()&&scan[0].gameInfo.parentMaxSize==512&&scan[0].gameInfo.childMaxSize==128&&scan[0].channel==11&&scan[0].beaconPeriod==120,"parent parameters changed");
     std::array<u8,6> oldMac{};std::copy(scan[0].bssid,scan[0].bssid+6,oldMac.begin());recipient=&b;CommunityWireless::Beacon(&q);recipient=nullptr;Require(b.beacons>0,"parent beacon callback missing");
     std::array<u8,24> ssid{};for(unsigned i=0;i<ssid.size();i++)ssid[i]=static_cast<u8>(i+1);Require(CommunityWireless::Join(&p,scan[0].bssid,ssid.data()),"actual WM join failed");CommunityWireless::RoleChange(&p,SIM_NET_MPSTATE_CHILD);
     Require(CommunityWireless::Aid(&p)==1&&CommunityWireless::Aid(&q)==0,"parent did not assign child AID");Wait([&]{return Completed(b,SIM_NET_MPPACKETCMD_JOIN_REQ,1,0,{ssid.begin(),ssid.end()});},"parent join callback missing");

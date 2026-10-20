@@ -16,6 +16,7 @@
 #include "battle/battle_subscreen.h"
 #include "battle/battle_system.h"
 #include "battle/common.h"
+#include "battle/community_ability_rules.h"
 #include "battle/healthbox.h"
 #include "battle/idle_bounce_anim.h"
 #include "battle/message_defs.h"
@@ -642,7 +643,7 @@ static void BtlIOCmd_RefreshPartyStatus(BattleSystem *battleSys, BattlerData *ba
     for (i = 0; i < partyCount; i++) {
         mon = BattleSystem_GetPartyPokemon(battleSys, battlerData->battler, i);
 
-        if (message->ability == ABILITY_MOLD_BREAKER) {
+        if (CommunityAbility_IgnoresDefenses(message->ability)) {
             ability = ABILITY_NONE;
         } else {
             ability = Pokemon_GetValue(mon, MON_DATA_ABILITY, NULL);

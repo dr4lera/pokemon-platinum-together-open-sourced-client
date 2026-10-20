@@ -29,7 +29,7 @@ void NARC_ReadWholeMemberByIndexPair(void *out,int archive,int member)
 }
 int main(int argc,char **argv)
 {
-    assert(argc==3); available=atoi(argv[1]); int modern=atoi(argv[2]);
+    assert(argc==4); available=atoi(argv[1]); int modern=atoi(argv[2]); int updates=atoi(argv[3]);
     _Static_assert(sizeof(MoveTable)==16,"Catalog move record and engine structure differ");
     catalog.valid=1;
     for(unsigned i=0;i<16;i++){catalog.fairyMovePalette[i*2]=(u8)i;catalog.fairyMovePalette[i*2+1]=0;}
@@ -43,6 +43,7 @@ int main(int argc,char **argv)
     catalog.moves[0][6]=90;catalog.moves[0][7]=0;
     catalog.moves[0][8]=15;catalog.moves[0][9]=0;
     assert(CommunityModernRules_Enabled()==modern);
+    assert(CommunityAbilityUpdates_Enabled()==updates);
     const u16 *none=GetMoveTypePalette(-1);
     assert(none && GetMoveTypePalette(-2)==none && GetMoveTypePalette(19)==none && GetMoveTypePalette(65535)==none);
     for(unsigned type=0;type<18;type++)assert(GetMoveTypePalette(type));
@@ -76,9 +77,11 @@ int main(int argc,char **argv)
     available=!available;
 #ifdef _WIN32
     _putenv_s("PLATINUM_COMMUNITY_MODERN_RULES",modern ? "0" : "1");
+    _putenv_s("PLATINUM_COMMUNITY_0110_ABILITIES",updates ? "0" : "1");
 #else
     setenv("PLATINUM_COMMUNITY_MODERN_RULES",modern ? "0" : "1",1);
+    setenv("PLATINUM_COMMUNITY_0110_ABILITIES",updates ? "0" : "1",1);
 #endif
-    assert(CommunityModernRules_Enabled()==modern && singleReads>0);
+    assert(CommunityModernRules_Enabled()==modern && CommunityAbilityUpdates_Enabled()==updates && singleReads>0);
     printf("Actual move table: modern=%d, bounded legacy bulk/single reads, six Fairy records, cached/single overrides and immutable gate passed.\n",modern);
 }

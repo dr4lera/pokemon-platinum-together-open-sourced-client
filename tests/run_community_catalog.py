@@ -30,7 +30,9 @@ class Catalog(ctypes.Structure):
                 ("types", (ctypes.c_uint8 * 4) * 25), ("moves", (ctypes.c_uint8 * 10) * 70),
                 ("metadata", (ctypes.c_uint8 * 6) * 65), ("evolutions", (ctypes.c_uint8 * 42) * 65),
                 ("spriteData", (ctypes.c_uint8 * 89) * 65), ("spriteHeights", (ctypes.c_uint8 * 2) * 65),
-                ("iconPalettes", ctypes.c_uint8 * 65), ("formGraphics", (ctypes.c_uint8 * 6) * 4), ("fairyMovePalette", ctypes.c_uint8 * 32)]
+                ("iconPalettes", ctypes.c_uint8 * 65), ("formGraphics", (ctypes.c_uint8 * 6) * 4), ("fairyMovePalette", ctypes.c_uint8 * 32),
+                ("modernMoves", (ctypes.c_uint8 * 16) * 374), ("statStages", (ctypes.c_uint8 * 12) * 41),
+                ("sideEffectScripts", (ctypes.c_uint8 * 4) * 33), ("metronomeExclusions", (ctypes.c_uint8 * 2) * 34)]
 
 
 class Metadata(ctypes.Structure):
@@ -38,14 +40,17 @@ class Metadata(ctypes.Structure):
 
 
 def wrap(payload):
-    return b"PTCAT03\0" + bytes.fromhex(REFERENCE) + struct.pack("<II", len(payload), zlib.crc32(payload)) + payload
+    return b"PTCAT04\0" + bytes.fromhex(REFERENCE) + struct.pack("<II", len(payload), zlib.crc32(payload)) + payload
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--reference", type=Path)
+    parser.add_argument("--move-archive", type=Path)
     parser.add_argument("--private-workspace", type=Path, help="Optional existing directory outside the source checkout for private temporary data")
     args = parser.parse_args()
+    if bool(args.reference) != bool(args.move_archive):
+        parser.error("--reference and --move-archive must be supplied together")
     compiler = os.environ.get("CC") or shutil.which("gcc") or "C:/msys64/ucrt64/bin/gcc.exe"
     scratch = ROOT / ".build-tools"
     scratch.mkdir(exist_ok=True)
@@ -93,6 +98,18 @@ def main():
         icon = library.CommunityCatalog_Icon
         icon.argtypes = [ctypes.POINTER(Catalog), ctypes.c_uint, ctypes.POINTER(ctypes.c_uint), ctypes.POINTER(ctypes.c_uint8)]
         icon.restype = ctypes.c_int
+        modern_move = library.CommunityCatalog_ModernMove
+        modern_move.argtypes = move_override.argtypes
+        modern_move.restype = ctypes.c_int
+        stat_stage = library.CommunityCatalog_StatStage
+        stat_stage.argtypes = move_override.argtypes
+        stat_stage.restype = ctypes.c_int
+        side_effect = library.CommunityCatalog_SideEffectScript
+        side_effect.argtypes = [ctypes.POINTER(Catalog), ctypes.c_uint, ctypes.POINTER(ctypes.c_uint)]
+        side_effect.restype = ctypes.c_int
+        metronome_excluded = library.CommunityCatalog_MetronomeExcluded
+        metronome_excluded.argtypes = [ctypes.POINTER(Catalog), ctypes.c_uint]
+        metronome_excluded.restype = ctypes.c_int
         try:
             catalog = Catalog()
 
@@ -118,9 +135,15 @@ def main():
             palettes = bytes(i % 3 for i in range(65))
             forms = b"".join(struct.pack("<HBBBB", 512 + i, i % 2 + 1, 70 + i, 80 + i, 0) for i in range(4))
             payload = old_payload + meta_records + evo_records + sprites + heights + palettes + forms + struct.pack("<16H", *range(16))
+            modern_at = len(payload)
+            modern_records = b"".join(struct.pack("<HBBBBBBHbBBBBB", i % 410, i % 3, i % 181, i % 19, i % 101, i % 40 + 1, i % 101, 256, i % 11 - 6, 18, 17, i % 5, 0, 0) for i in range(374))
+            stage_records = b"".join(struct.pack("<HBB7bB", 474 + i, i % 5, i % 4, -2, -1, 0, 1, 2, 3, 0, 0) for i in range(41))
+            side_records = b"".join(struct.pack("<I", 297 + i) for i in range(33))
+            excluded_records = b"".join(struct.pack("<H", 474 + i) for i in range(34))
+            payload += modern_records + stage_records + side_records + excluded_records
             blob = wrap(payload)
-            assert len(blob) == 29956 and load(blob) == 1
-            for damaged in (blob[:-1], blob + b"\0", bytes([blob[0] ^ 1]) + blob[1:], blob[:8] + bytes(32) + blob[40:], blob[:-1] + b"\1", b"PTCAT01\0" + blob[8:], b"PTCAT02\0" + blob[8:], wrap(old_payload)):
+            assert len(blob) == 36632 and load(blob) == 1
+            for damaged in (blob[:-1], blob + b"\0", bytes([blob[0] ^ 1]) + blob[1:], blob[:8] + bytes(32) + blob[40:], blob[:-1] + bytes([blob[-1] ^ 1]), b"PTCAT01\0" + blob[8:], b"PTCAT02\0" + blob[8:], b"PTCAT03\0" + blob[8:], wrap(old_payload)):
                 assert load(damaged) == 0 and catalog.valid == 0
             for offset, value in ((6, 19), (19, 6), (22, 144), (65 * 44 + 8, 1), (19951, 1), (19954, 19), (20084, 19), (len(payload) - 1, 128)):
                 damaged = bytearray(payload)
@@ -144,6 +167,38 @@ def main():
                 damaged[offset:offset + len(replacement)] = replacement
                 assert load(wrap(damaged)) == 0 and catalog.valid == 0
             assert load(blob) == 1
+            # Correct CRC cannot admit malformed modern metadata or table keys.
+            stage_at = modern_at + len(modern_records)
+            side_at = stage_at + len(stage_records)
+            excluded_at = side_at + len(side_records)
+            for offset, replacement in ((modern_at, b"\xff\xff"), (modern_at + 2, b"\x03"),
+                (modern_at + 4, b"\x13"), (modern_at + 5, b"\x65"), (modern_at + 6, b"\0"),
+                (modern_at + 7, b"\x65"), (modern_at + 8, b"\xff\xff"),
+                (modern_at + 10, b"\x80"), (modern_at + 13, b"\x05"), (modern_at + 14, b"\x01"),
+                (stage_at, b"\0\0"), (stage_at + 2, b"\x05"), (stage_at + 3, b"\x04"),
+                (stage_at + 4, b"\xfd"), (stage_at + 10, b"\x04"), (stage_at + 11, b"\x01"),
+                (stage_at + 12, stage_records[:2]), (side_at, b"\xff\xff\xff\xff"),
+                (excluded_at, b"\0\0"), (excluded_at + 2, excluded_records[:2])):
+                damaged = bytearray(payload)
+                damaged[offset:offset + len(replacement)] = replacement
+                assert load(wrap(damaged)) == 0 and catalog.valid == 0
+            assert load(blob) == 1
+            record = (ctypes.c_uint8 * 16)()
+            stage = (ctypes.c_uint8 * 12)()
+            route = ctypes.c_uint()
+            for i in range(374):
+                assert modern_move(ctypes.byref(catalog), 474 + i, record) == 1 and bytes(record) == modern_records[i * 16:(i + 1) * 16]
+            for i in range(41):
+                assert stat_stage(ctypes.byref(catalog), 474 + i, stage) == 1 and bytes(stage) == stage_records[i * 12:(i + 1) * 12]
+            for i in range(33):
+                assert side_effect(ctypes.byref(catalog), 145 + i, ctypes.byref(route)) == 1 and route.value == 297 + i
+            for i in range(474, 848):
+                assert metronome_excluded(ctypes.byref(catalog), i) == (i < 508)
+            for api, destination, low, high in ((modern_move, record, 473, 848), (stat_stage, stage, 473, 515), (side_effect, ctypes.byref(route), 144, 178)):
+                assert api(None, 474, destination) == 0 and api(ctypes.byref(catalog), 474, None) == 0
+                before = bytes(record), bytes(stage), route.value
+                assert api(ctypes.byref(catalog), low, destination) == 0 and api(ctypes.byref(catalog), high, destination) == 0
+                assert before == (bytes(record), bytes(stage), route.value)
             output = (ctypes.c_uint8 * 44)()
             moves = Learnset()
             for species in (511, 577, 65535):
@@ -211,7 +266,7 @@ def main():
             assert sprite_index(ctypes.byref(catalog), 512, 0, None) == 0
             assert icon(ctypes.byref(catalog), 512, None, ctypes.byref(palette)) == 0
             assert icon(ctypes.byref(catalog), 512, ctypes.byref(archive), None) == 0
-            print("Community V3 catalog: strict format/integrity, numeric species/form/sprite bounds and transactional supplements passed.")
+            print("Community V4 catalog: strict format/integrity, species/graphics and modern move/stat/route bounds, immutable output on failure and transactional supplements passed.")
 
             if args.reference:
                 # Use system temp: extracted runtime bytes never enter the checkout.
@@ -220,7 +275,7 @@ def main():
                     raise SystemExit("Private test workspace must be an existing directory outside the checkout")
                 with tempfile.TemporaryDirectory(prefix="community-private-catalog-", dir=private_root) as private:
                     imported = Path(private) / "catalog.ptc"
-                    subprocess.run([os.sys.executable, str(ROOT / "tools/community/import-reference-catalog.py"), str(args.reference), str(imported)], check=True)
+                    subprocess.run([os.sys.executable, str(ROOT / "tools/community/import-reference-catalog.py"), str(args.reference), str(imported), "--move-archive", str(args.move_archive)], check=True)
                     assert load(imported.read_bytes()) == 1
                     image = args.reference.read_bytes()
                     assert hashlib.sha256(image).hexdigest() == REFERENCE
@@ -243,6 +298,18 @@ def main():
                         assert archive.value == 547 + index and palette.value == catalog.iconPalettes[index]
                     assert bytes(catalog.formGraphics) == image[0xE1A8B0:0xE1A8B0 + 24]
                     assert bytes(catalog.fairyMovePalette) == image[0xDE1B04:0xDE1B24]
+                    assert bytes(catalog.statStages) == image[0xE1ABE0:0xE1ABE0 + 492]
+                    assert bytes(catalog.sideEffectScripts) == image[0xDE6F80 + 145 * 4:0xDE6F80 + 178 * 4]
+                    assert bytes(catalog.metronomeExclusions) == image[0xE1AB80:0xE1AB80 + 68]
+                    # Exact selected archive members, independently read using
+                    # the serialized FAT/image offsets rather than importer API.
+                    archive_bytes = args.move_archive.read_bytes()
+                    assert hashlib.sha256(archive_bytes).hexdigest() == "481cca9e8e3861e267dcef73c7cd6d3a02b69e3a3fc1369411ea93393b05a344"
+                    image_at = 16 + struct.unpack_from("<I", archive_bytes, 20)[0]
+                    image_at += struct.unpack_from("<I", archive_bytes, image_at + 4)[0] + 8
+                    for i in range(374):
+                        start, end = struct.unpack_from("<II", archive_bytes, 28 + (474 + i) * 8)
+                        assert bytes(catalog.modernMoves[i]) == archive_bytes[image_at + start:image_at + end]
                     for i, row in enumerate(catalog.formGraphics):
                         species, form, front, back, unused = struct.unpack("<HBBBB", bytes(row))
                         assert sprite_index(ctypes.byref(catalog), species, form, ctypes.byref(archive)) == 1 and archive.value == 577 + i
@@ -267,7 +334,7 @@ def main():
                     moves.entries[0].move, moves.entries[0].level = 1, 1
                     assert supplement(ctypes.byref(catalog), 35, ctypes.byref(moves)) == 0
                     assert [(e.move, e.level) for e in moves.entries[:moves.count]] == [(1, 1), (469, 1), (473, 46)]
-                    print("Pinned reference: all V3 numeric tables and move palette and four graphics forms match; personal/learnsets and 32/25/70 legacy overrides retained.")
+                    print("Pinned reference: all V4 numeric species/graphics and374 move/stat/route/exclusion tables match; personal/learnsets and32/25/70 legacy overrides retained.")
         finally:
             import _ctypes
             if os.name == "nt":

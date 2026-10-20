@@ -18,7 +18,35 @@ struct Options {
     std::uint32_t pingIntervalMs = 20000;
     std::uint32_t pongTimeoutMs = 10000;
 };
-struct Member { std::string player, name; bool online = false; };
+// Together look/outfit values are opaque server IDs, not native sprite indices.
+struct ArtReference { std::string creation, version, format, hash; };
+struct Appearance {
+    std::uint8_t look = 0;
+    std::uint16_t outfit = 0;
+    bool hasArt = false;
+    ArtReference art;
+};
+struct Member { std::string player, name; bool online = false; Appearance appearance{}; };
+struct Trainer {
+    std::string name;
+    std::uint8_t look = 0;
+    std::uint16_t outfit = 0;
+    bool tutorialDone = false;
+    std::uint64_t revision = 0;
+};
+struct TrainerSnapshot {
+    bool loaded = false, available = false, updating = false, conflict = false;
+    Trainer value;
+};
+enum class CityState { Absent, Entering, Present, Leaving };
+struct CityPlayer { std::string player, name, status; std::uint8_t slot = 255; Appearance appearance; };
+struct CitySnapshot {
+    CityState state = CityState::Absent;
+    std::uint64_t generation = 0; // Authenticated lobby connection, never a game/map ID.
+    std::uint8_t slot = 255;
+    std::string error;
+    std::vector<CityPlayer> players; // Other sockets, keyed by slot (players can repeat).
+};
 struct Message { std::uint64_t id = 0; std::string from, name, text; };
 enum class LinkState { Idle, Preparing, Prepared, Opening, Connecting, Authenticating, Waiting, Active, Ended, Failed };
 struct LinkPeer { std::uint8_t seat = 255; std::string player, mac; };
@@ -43,6 +71,8 @@ struct Snapshot {
     std::string error, player, username, partyId, partyCode;
     std::vector<Member> members;
     std::vector<Message> messages;
+    TrainerSnapshot trainer;
+    CitySnapshot city;
 };
 // All network and key/file operations run on a private worker. Read() copies a
 // bounded snapshot; queue methods never access the game/save/renderer.
@@ -59,6 +89,11 @@ public:
     bool JoinParty(const std::string& code);
     bool LeaveParty();
     bool SendGlobalChat(const std::string& text);
+    bool RefreshTrainer();
+    bool UpdateTrainer(const Trainer& trainer); // Revision 0 creates only a confirmed absent profile.
+    bool EnterCity(); // Social plaza presence only; never changes game position.
+    bool LeaveCity(); // Also cancels a pending enter; independent of party/link state.
+    bool SetCityStatus(const std::string& status);
     LinkSnapshot ReadLink() const; // No account keys or single-use tickets.
     bool PrepareLink(const std::string& catalogHash, const std::string& rulesHash);
     bool OpenLink(const std::string& requestId = "");
@@ -71,5 +106,6 @@ private:
 };
 const char* StateName(State state);
 const char* LinkStateName(LinkState state);
+const char* CityStateName(CityState state);
 }
 #endif

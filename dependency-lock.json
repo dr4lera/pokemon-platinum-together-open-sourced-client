@@ -8,7 +8,7 @@
     "commit": "ab4508e6abe338a3bd2e6eb5da1d18b8cf55dc93"
   },
   "subprojects": {
-    "libntr": "d66f6f058e4b985afce3dcb14a44dfa66a47657e",
+    "libntr": "3b4149ef68f8385f044f57d26b1a871ea9910a87",
     "libntrsystem": "bc08b00f9a588a6a658fe3832d7e113f81647311",
     "libntrwifi": "067dabb137dfaf80b8ceeb3b3c4a7256bfabc3e0",
     "libntrdwc": "16246ba7b4269e6686f3e4da068e3c996a103739",

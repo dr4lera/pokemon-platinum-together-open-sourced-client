@@ -865,6 +865,26 @@
         "Reduces a sleeping foe’s\n",
         "HP."
       ]
-    }
+    },
+    { "id": "pl_msg_00000612_00124", "en_US": ["Opponents cannot eat\n", "their Berries."] },
+    { "id": "pl_msg_00000612_00125", "en_US": ["May cure an ally’s\n", "status condition."] },
+    { "id": "pl_msg_00000612_00126", "en_US": ["Foes cannot lower this\n", "Pokémon’s Defense."] },
+    { "id": "pl_msg_00000612_00127", "en_US": ["Appears as another\n", "Pokémon in the party."] },
+    { "id": "pl_msg_00000612_00128", "en_US": ["Bypasses protective\n", "screens and substitutes."] },
+    { "id": "pl_msg_00000612_00129", "en_US": ["Knocking out a foe\n", "raises Attack."] },
+    { "id": "pl_msg_00000612_00130", "en_US": ["Grass moves raise Attack\n", "instead of causing harm."] },
+    { "id": "pl_msg_00000612_00131", "en_US": ["Gives status moves\n", "higher priority."] },
+    { "id": "pl_msg_00000612_00132", "en_US": ["Raises the accuracy of\n", "its side’s moves."] },
+    { "id": "pl_msg_00000612_00133", "en_US": ["Moves bypass defensive\n", "Abilities."] },
+    { "id": "pl_msg_00000612_00134", "en_US": ["Moves bypass defensive\n", "Abilities."] },
+    { "id": "pl_msg_00000612_00135", "en_US": ["Increases the power\n", "of biting moves."] },
+    { "id": "pl_msg_00000612_00136", "en_US": ["Protects this Pokémon\n", "and its ally from sleep."] },
+    { "id": "pl_msg_00000612_00137", "en_US": ["Changes stance to match\n", "the move being used."] },
+    { "id": "pl_msg_00000612_00138", "en_US": ["Raises the power of\n", "Dark moves in battle."] },
+    { "id": "pl_msg_00000612_00139", "en_US": ["Raises the power of\n", "Fairy moves in battle."] },
+    { "id": "pl_msg_00000612_00140", "en_US": ["Its level and HP decide\n", "whether it forms a school."] },
+    { "id": "pl_msg_00000612_00141", "en_US": ["A disguise takes a hit\n", "before breaking."] },
+    { "id": "pl_msg_00000612_00142", "en_US": ["Contact moves can pass\n", "through protection."] },
+    { "id": "pl_msg_00000612_00143", "en_US": ["A battle bond can\n", "trigger a form change."] }
   ]
 }

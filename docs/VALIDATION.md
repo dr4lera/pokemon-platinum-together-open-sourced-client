@@ -97,3 +97,32 @@ completed with EXP2744 unchanged. Its own framebuffer shows the encoded species
 name and correctly routed back sprite/height/shadow in the actual battle. Both
 scenes exited with no save. These are single-client battle/render checks, not
 two-client battle/trade, full animation parity or all-species acceptance.
+
+## Subsequent source validation
+
+The private V4 catalog parser validates all374 later move metadata records,
+41 stat-stage records,33 pointer routes and34 exclusions, with strict lengths,
+ranges and immutable outputs on refusal. This does not admit374 playable moves.
+The actual engine stat/opcode fixtures and eight opt-in0.1.10 ability fixtures
+pass, including native translation-unit compilation and both144-entry text banks.
+The eight abilities and remaining exclusions are listed in
+[the ability validation record](COMMUNITY_ABILITY_UPDATES.md).
+
+The bounded area-light parser reproduces and fixes the legacy CRCRLF dark-sprite
+input case. Its actual loader fixture validates colors, owned read extents,
+malformed data and complete initialized fallback. Runtime controller/capture and
+fresh Union Room preflight fixtures pass, including actual Windows junction
+refusal. Symbolic-link creation was unavailable for its separate platform check.
+
+CWM2 and runtime provider ABI2 pass the actual SDK scan regression and real
+loopback Service/Core/provider fixture: byte-accurate112-byte beacons, bounded
+scan output, parent/AID association, bidirectional data and callback ownership.
+The SDK runtime's isolated scan/connect/lifecycle fixture also passes. These
+remain distinct from completed two-game native battle/trade acceptance.
+
+The subsequent full Windows x64 build completed all3331 tasks and linked with
+V4, the eight gated ability rules, bounded lighting, final presentation guards,
+QA controls and CWM2/runtime ABI2. The previous public Windows CI failure was a
+fixture's machine-specific compiler default; workflow CC/CXX now use the actual
+MSYS installation. Publication lint of the changed source reports zero failures;
+inherited public engine symbol names are retained intentionally.

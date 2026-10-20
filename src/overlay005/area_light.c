@@ -13,6 +13,11 @@
 #include "graphics.h"
 #include "heap.h"
 #include "rtc.h"
+#ifdef SDK_PORT
+#include <stdio.h>
+#include "narc.h"
+#include "port/community_area_light.h"
+#endif
 
 #define AREA_LIGHT_FILE_COUNT 4
 #define SCRATCH_BUFFER_SIZE   256
@@ -21,8 +26,10 @@
 static void AreaLightManager_ApplyActiveTemplateToAreaModelAttrs(AreaLightManager *areaLightMan);
 static u32 AreaLightTemplate_New(u32 archiveID, AreaLightTemplate **templates);
 static void AreaLightTemplate_Free(AreaLightTemplate **template);
+#ifndef SDK_PORT
 static char *AreaLightTemplate_ParseLightAttrs(char *fileIter, GXRgb *lightColor, VecFx16 *lightVector);
 static char *AreaLightTemplate_ParseColor(char *fileIter, GXRgb *color);
+#endif
 
 AreaLightManager *AreaLightManager_New(ModelAttributes *areaModelAttrs, const u8 archiveID)
 {
@@ -122,6 +129,72 @@ void AreaLight_UseGlobalModelAttributes(NNSG3dResMdl *model)
 
 static u32 AreaLightTemplate_New(u32 archiveID, AreaLightTemplate **templates)
 {
+#ifdef SDK_PORT
+    /* The desktop asset path may preserve CRCRLF after text conversion. Read
+     * the exact member extent and validate the entire CSV before publishing
+     * any template. Keep the original ARM reader below unchanged. */
+    NARC *narc = NARC_ctor(NARC_INDEX_DATA__AREALIGHT, HEAP_ID_FIELD1);
+    void *buffer = NULL;
+    CommunityAreaLightRecord *records = NULL;
+    size_t count = 0;
+    BOOL valid = FALSE;
+    *templates = NULL;
+    if (narc && archiveID < NARC_GetFileCount(narc)) {
+        u32 length = NARC_GetMemberSize(narc, archiveID);
+        if (length > 0 && length <= 131072) {
+            buffer = Heap_Alloc(HEAP_ID_FIELD1, length);
+            if (buffer) {
+                NARC_ReadFromMember(narc, archiveID, 0, length, buffer);
+                if (CommunityAreaLight_Parse(buffer, length, NULL, 0, &count)) {
+                    records = Heap_Alloc(HEAP_ID_FIELD1, count * sizeof(*records));
+                    if (records) valid = CommunityAreaLight_Parse(buffer, length, records, count, &count);
+                }
+            }
+        }
+    }
+    if (narc) NARC_dtor(narc);
+    if (buffer) Heap_Free(buffer);
+    if (valid) {
+        *templates = Heap_Alloc(HEAP_ID_FIELD1, count * sizeof(**templates));
+        if (*templates) {
+            MI_CpuClear8(*templates, count * sizeof(**templates));
+            for (size_t i = 0; i < count; ++i) {
+                AreaLightTemplate *output = &(*templates)[i];
+                const CommunityAreaLightRecord *input = &records[i];
+                output->endTime = input->endTime;
+                output->validLightsMask = input->validLightsMask;
+                for (int light = 0; light < GX_LIGHTS_COUNT; ++light) {
+                    output->lightColors[light] = input->lightColors[light];
+                    output->lightVectors[light].x = input->lightVectors[light][0];
+                    output->lightVectors[light].y = input->lightVectors[light][1];
+                    output->lightVectors[light].z = input->lightVectors[light][2];
+                }
+                output->diffuseReflectColor = input->materialColors[0];
+                output->ambientReflectColor = input->materialColors[1];
+                output->specularReflectColor = input->materialColors[2];
+                output->emissionColor = input->materialColors[3];
+            }
+        } else valid = FALSE;
+    }
+    if (records) Heap_Free(records);
+    if (valid) return count;
+    /* A malformed desktop resource must not publish partial/black colors.
+     * This explicit neutral fallback is a port stability deviation. */
+    fprintf(stderr, "Community area lighting: invalid/unavailable member %u; using initialized neutral fallback\n", (unsigned)archiveID);
+    fflush(stderr);
+    *templates = Heap_Alloc(HEAP_ID_FIELD1, sizeof(**templates));
+    GF_ASSERT(*templates != NULL);
+    if (*templates == NULL) return 0;
+    MI_CpuClear8(*templates, sizeof(**templates));
+    (*templates)->endTime = 43200;
+    (*templates)->validLightsMask = 1;
+    (*templates)->lightColors[0] = GX_RGB(31, 31, 31);
+    (*templates)->lightVectors[0].z = -FX16_ONE;
+    (*templates)->diffuseReflectColor = GX_RGB(16, 16, 16);
+    (*templates)->ambientReflectColor = GX_RGB(16, 16, 16);
+    (*templates)->emissionColor = GX_RGB(16, 16, 16);
+    return 1;
+#else
     int i, j;
     char lineBuffer[SCRATCH_BUFFER_SIZE];
     char endTimeBuffer[SCRATCH_BUFFER_SIZE];
@@ -178,6 +251,7 @@ static u32 AreaLightTemplate_New(u32 archiveID, AreaLightTemplate **templates)
     Heap_FreeExplicit(HEAP_ID_FIELD1, fileBuffer);
 
     return templateCount;
+#endif
 }
 
 static void AreaLightTemplate_Free(AreaLightTemplate **template)
@@ -186,6 +260,7 @@ static void AreaLightTemplate_Free(AreaLightTemplate **template)
     *template = NULL;
 }
 
+#ifndef SDK_PORT
 static char *AreaLightTemplate_ParseLightAttrs(char *fileIter, GXRgb *lightColor, VecFx16 *lightVector)
 {
     char lineBuffer[SCRATCH_BUFFER_SIZE];
@@ -266,3 +341,4 @@ static char *AreaLightTemplate_ParseColor(char *fileIter, GXRgb *color)
 
     return fileIter;
 }
+#endif

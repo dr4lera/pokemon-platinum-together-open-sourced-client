@@ -14,7 +14,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: dr4lera/pokemon-platinum-together-open-sourced-runtime
-          ref: d66f6f058e4b985afce3dcb14a44dfa66a47657e
+          ref: 3b4149ef68f8385f044f57d26b1a871ea9910a87
           path: subprojects/libntr
       - uses: actions/checkout@v4
         with:
@@ -32,7 +32,11 @@ jobs:
       - run: python3 tests/run_community_qa_guard.py
       - run: python3 tests/run_community_character_sprite.py
       - run: python3 tests/run_community_asset_overlay.py
+      - run: python3 subprojects/libntr/tests/community_wm_test.py
       - run: python3 tests/run_community_wireless.py
+      - run: python3 tests/run_community_controller.py
+      - run: python3 tests/run_community_link_qa_guard.py
+      - run: python3 tests/run_community_area_light.py
       - run: python3 tests/run_community_wireless_core.py
       - run: python3 tests/run_community_species_text.py
       - run: python3 tests/run_community_modern_assets.py

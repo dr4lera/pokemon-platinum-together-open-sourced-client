@@ -71,7 +71,7 @@ int main()
     for (unsigned size=0;size<9;++size) assert(!clients[2].Receive(0,{frame.begin(),frame.begin()+size}));
     forged=frame; forged[8]++; assert(!clients[2].Receive(0,forged));
     forged=frame; forged[6]=16; assert(!clients[2].Receive(0,forged));
-    forged=frame; forged[3]=2; assert(!clients[2].Receive(0,forged));
+    forged=frame; forged[3]=1; assert(!clients[2].Receive(0,forged));
     assert(clients[2].TakeEvents().empty());
     std::uint16_t disconnected=0;
     assert(clients[0].Disconnect(1,disconnected) && disconnected==1); Pump();
@@ -95,5 +95,22 @@ int main()
     assert(!clients[2].Disconnect(2,disconnected) && disconnected==0 && clients[2].GetPeer(3).role==Role::Child);
     clients[2].End(); assert(clients[2].TakeFrames().empty());
     assert(!clients[2].SetRole(Role::Child));
+    // Real parent limits and beacon metadata survive fixed-width v2 encoding.
+    Setup();
+    const ParentInfo parent{512,128,120,11,1,5};
+    std::vector<std::uint8_t> maximumInfo(112);
+    for(unsigned i=0;i<maximumInfo.size();i++)maximumInfo[i]=static_cast<std::uint8_t>(i*3+1);
+    assert(clients[2].SetInfo(0x1234,0x5678,maximumInfo.data(),112,parent));
+    assert(clients[2].SetRole(Role::Parent));Pump();
+    const auto& advertised=clients[0].GetPeer(2);
+    assert(advertised.parent.parentMaxSize==512&&advertised.parent.childMaxSize==128&&advertised.parent.channel==11&&advertised.parent.beaconPeriod==120&&advertised.parent.maxEntry==1&&advertised.parent.attributes==5&&advertised.gameInfo==maximumInfo);
+    auto invalidParent=parent;invalidParent.parentMaxSize=513;assert(!clients[2].SetInfo(9,9,info,sizeof(info),invalidParent));
+    invalidParent=parent;invalidParent.maxEntry=16;assert(!clients[2].SetInfo(9,9,info,sizeof(info),invalidParent));
+    invalidParent=parent;invalidParent.channel=15;assert(!clients[2].SetInfo(9,9,info,sizeof(info),invalidParent));
+    assert(clients[0].Join(roster[2].data(),ssid,100));Pump();clients[2].TakeEvents();
+    assert(clients[1].Join(roster[2].data(),ssid,101));Pump();
+    assert(!clients[1].Joining()&&clients[1].GetPeer(1).role==Role::Off&&clients[1].Active()&&clients[2].Active()&&clients[2].TakeEvents().empty());
+    assert(clients[0].Disconnect(1,disconnected));Pump();clients[2].TakeEvents();
+    assert(clients[1].Join(roster[2].data(),ssid,102));Pump();assert(clients[1].GetPeer(1).aid==1);
     std::puts("WM semantic core: authenticated seats, independent AIDs, four-peer handshake, duplicate joins, parent/child routing, malformed input, disconnect/reuse, bounded queues and generation teardown passed.");
 }

@@ -7,7 +7,10 @@
 namespace CommunityWireless {
 namespace {
 enum Kind : std::uint8_t { Info = 1, JoinRequest, JoinResponse, DisconnectPeer, Data };
-std::vector<std::uint8_t> Packet(Kind kind) { return {'C','W','M',1,kind}; }
+std::vector<std::uint8_t> Packet(Kind kind) { return {'C','W','M',2,kind}; }
+void U16(std::vector<std::uint8_t>& out, std::uint16_t n) { out.push_back(n >> 8); out.push_back(n & 255); }
+std::uint16_t U16(const std::vector<std::uint8_t>& in, unsigned pos) { return (std::uint16_t(in[pos]) << 8) | in[pos+1]; }
+bool ValidParent(const ParentInfo& p) { return p.parentMaxSize <= MaxData && p.childMaxSize <= MaxData && p.channel <= 14 && p.maxEntry <= 15; }
 void U32(std::vector<std::uint8_t>& out, std::uint32_t n) {
     for (int shift = 24; shift >= 0; shift -= 8) out.push_back(static_cast<std::uint8_t>(n >> shift));
 }
@@ -56,15 +59,18 @@ bool Core::Advertise()
     if (frames.size() + count - 1 > 128) return false;
     const auto& p = peers[seat];
     auto b = Packet(Info); b.push_back(static_cast<std::uint8_t>(p.role)); b.push_back(p.aid);
-    U32(b, p.ggid); U32(b, p.tgid); b.push_back(static_cast<std::uint8_t>(p.gameInfo.size()));
+    U32(b, p.ggid); U32(b, p.tgid);
+    U16(b,p.parent.parentMaxSize); U16(b,p.parent.childMaxSize); U16(b,p.parent.beaconPeriod);
+    U16(b,p.parent.channel); U16(b,p.parent.maxEntry); b.push_back(p.parent.attributes);
+    b.push_back(static_cast<std::uint8_t>(p.gameInfo.size()));
     b.insert(b.end(), p.gameInfo.begin(), p.gameInfo.end());
     for (unsigned i = 0; i < count; ++i) if (i != seat) Queue(i, b);
     return true;
 }
-bool Core::SetInfo(std::uint32_t ggid, std::uint32_t tgid, const std::uint8_t* bytes, unsigned size)
+bool Core::SetInfo(std::uint32_t ggid, std::uint32_t tgid, const std::uint8_t* bytes, unsigned size, ParentInfo parent)
 {
-    if (size > 112 || (size && !bytes) || (active && frames.size() + count - 1 > 128)) return false;
-    auto& p = peers[seat]; p.ggid = ggid; p.tgid = tgid; p.gameInfo.clear();
+    if (!ValidParent(parent) || size > 112 || (size && !bytes) || (active && frames.size() + count - 1 > 128)) return false;
+    auto& p = peers[seat]; p.ggid = ggid; p.tgid = tgid; p.parent = parent; p.gameInfo.clear();
     if (size) p.gameInfo.assign(bytes, bytes + size);
     Advertise(); return true;
 }
@@ -138,11 +144,13 @@ bool Core::Send(std::uint16_t mask, unsigned port, const std::uint8_t* bytes, un
 bool Core::Receive(unsigned sender, const std::vector<std::uint8_t>& b)
 {
     if (!active || sender >= count || sender == seat || b.size() < 5 || b.size() > MaxData + 16
-        || b[0] != 'C' || b[1] != 'W' || b[2] != 'M' || b[3] != 1 || events.size() >= 128) return false;
+        || b[0] != 'C' || b[1] != 'W' || b[2] != 'M' || b[3] != 2 || events.size() >= 128) return false;
     auto& remote = peers[sender]; auto& local = peers[seat];
     switch (b[4]) {
     case Info: {
-        if (b.size() < 16 || b[5] > 2 || b[6] >= 16 || b[15] > 112 || b.size() != 16u + b[15]) return false;
+        if (b.size() < 27 || b[5] > 2 || b[6] >= 16 || b[26] > 112 || b.size() != 27u + b[26]) return false;
+        const ParentInfo parent{U16(b,15),U16(b,17),U16(b,19),U16(b,21),U16(b,23),b[25]};
+        if (!ValidParent(parent)) return false;
         Role role = static_cast<Role>(b[5]);
         if (role != Role::Child && b[6] != 0) return false;
         // A child cannot assign itself an AID. Parent/child associations are
@@ -153,14 +161,20 @@ bool Core::Receive(unsigned sender, const std::vector<std::uint8_t>& b)
             if (remote.role == Role::Child) return false;
             remote.role = role; remote.aid = 0;
         }
-        remote.ggid = U32(b,7); remote.tgid = U32(b,11);
-        remote.gameInfo.assign(b.begin()+16,b.end()); return true;
+        remote.ggid = U32(b,7); remote.tgid = U32(b,11); remote.parent = parent;
+        remote.gameInfo.assign(b.begin()+27,b.end()); return true;
     }
     case JoinRequest: {
         if (b.size() != 33 || local.role != Role::Parent || !U32(b,5)) return false;
         const auto nonce = U32(b,5);
         const bool duplicate = remote.role == Role::Child && remote.aid > 0 && acceptedNonces[sender] == nonce;
         if (remote.role == Role::Child && !duplicate) return false;
+        unsigned occupied = 0;
+        for (unsigned i = 1; i < 16; i++) if (allocated & (1u << i)) ++occupied;
+        if (!duplicate && occupied >= local.parent.maxEntry) {
+            auto response = Packet(JoinResponse); U32(response,nonce); response.push_back(0);
+            return Queue(sender,std::move(response));
+        }
         unsigned aid = duplicate ? remote.aid : 1;
         if (!duplicate) while (aid < 16 && (allocated & (1u << aid))) ++aid;
         if (aid >= 16) return false;
@@ -173,7 +187,11 @@ bool Core::Receive(unsigned sender, const std::vector<std::uint8_t>& b)
         return true;
     }
     case JoinResponse: {
-        if (b.size() != 10 || sender != joinParent || remote.role != Role::Parent || U32(b,5) != joinNonce || b[9] == 0 || b[9] >= 16) return false;
+        if (b.size() != 10 || sender != joinParent || remote.role != Role::Parent || U32(b,5) != joinNonce || b[9] >= 16) return false;
+        if (b[9] == 0) {
+            if (local.role != Role::Off) return false;
+            joinParent = MaxPeers; joinNonce = 0; return true;
+        }
         if (local.role == Role::Child) return local.aid == b[9];
         if (local.role != Role::Off) return false;
         if (frames.size() + count - 1 > 128) return false;

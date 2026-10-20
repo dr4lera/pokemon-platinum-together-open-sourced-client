@@ -32,7 +32,7 @@ int CommunityCatalog_Decode(const uint8_t *bytes, size_t length, CommunityCatalo
     if (out == NULL) return 0;
     out->valid = 0;
     if (bytes == NULL || length != COMMUNITY_CATALOG_FILE_BYTES
-        || memcmp(bytes, "PTCAT03\0", 8) != 0
+        || memcmp(bytes, "PTCAT04\0", 8) != 0
         || memcmp(bytes + 8, referenceHash, sizeof(referenceHash)) != 0
         || Read32(bytes + 40) != COMMUNITY_CATALOG_PAYLOAD_BYTES
         || Crc32(bytes + COMMUNITY_CATALOG_HEADER_BYTES, COMMUNITY_CATALOG_PAYLOAD_BYTES) != Read32(bytes + 44)) {
@@ -50,6 +50,36 @@ int CommunityCatalog_Decode(const uint8_t *bytes, size_t length, CommunityCatalo
     const uint8_t *iconPalettes = spriteHeights + sizeof(out->spriteHeights);
     const uint8_t *formGraphics = iconPalettes + sizeof(out->iconPalettes);
     const uint8_t *fairyMovePalette = formGraphics + sizeof(out->formGraphics);
+    const uint8_t *modernMoves = fairyMovePalette + sizeof(out->fairyMovePalette);
+    const uint8_t *statStages = modernMoves + sizeof(out->modernMoves);
+    const uint8_t *sideEffectScripts = statStages + sizeof(out->statStages);
+    const uint8_t *metronomeExclusions = sideEffectScripts + sizeof(out->sideEffectScripts);
+    for (size_t i = 0; i < COMMUNITY_MODERN_MOVE_COUNT; i++) {
+        const uint8_t *r = modernMoves + i * 16;
+        int priority = r[10] < 128 ? r[10] : (int)r[10] - 256;
+        if (Read16(r) > 409 || r[2] > 2 || r[4] > 18 || r[5] > 100 || r[6] == 0 || r[6] > 40
+            || r[7] > 100 || Read16(r + 8) > 256 || priority < -6 || priority > 4
+            || r[13] > 4 || r[14] || r[15]) return 0;
+    }
+    for (size_t i = 0; i < COMMUNITY_STAT_STAGE_COUNT; i++) {
+        const uint8_t *r = statStages + i * 12;
+        if (Read16(r) < COMMUNITY_MODERN_MOVE_FIRST || Read16(r) >= COMMUNITY_MODERN_MOVE_FIRST + COMMUNITY_MODERN_MOVE_COUNT
+            || r[2] > 4 || r[3] > 3 || r[11]) return 0;
+        for (size_t j = 4; j < 11; j++) {
+            int delta = r[j] < 128 ? r[j] : (int)r[j] - 256;
+            if (delta < -2 || delta > 3) return 0;
+        }
+        for (size_t j = 0; j < i; j++) if (Read16(statStages + j * 12) == Read16(r)) return 0;
+    }
+    for (size_t i = 0; i < COMMUNITY_SIDE_EFFECT_COUNT; i++) {
+        uint32_t script = Read32(sideEffectScripts + i * 4);
+        if (script < 297 || script > 338) return 0;
+    }
+    for (size_t i = 0; i < COMMUNITY_METRONOME_EXCLUSION_COUNT; i++) {
+        unsigned move = Read16(metronomeExclusions + i * 2);
+        if (move < COMMUNITY_MODERN_MOVE_FIRST || move >= COMMUNITY_MODERN_MOVE_FIRST + COMMUNITY_MODERN_MOVE_COUNT) return 0;
+        for (size_t j = 0; j < i; j++) if (Read16(metronomeExclusions + j * 2) == move) return 0;
+    }
     for (size_t i = 0; i < COMMUNITY_FAIRY_MOVE_PALETTE_BYTES; i += 2) {
         if (Read16(fairyMovePalette + i) > 0x7fff) return 0;
     }
@@ -127,6 +157,10 @@ int CommunityCatalog_Decode(const uint8_t *bytes, size_t length, CommunityCatalo
     memcpy(out->iconPalettes, iconPalettes, sizeof(out->iconPalettes));
     memcpy(out->formGraphics, formGraphics, sizeof(out->formGraphics));
     memcpy(out->fairyMovePalette, fairyMovePalette, sizeof(out->fairyMovePalette));
+    memcpy(out->modernMoves, modernMoves, sizeof(out->modernMoves));
+    memcpy(out->statStages, statStages, sizeof(out->statStages));
+    memcpy(out->sideEffectScripts, sideEffectScripts, sizeof(out->sideEffectScripts));
+    memcpy(out->metronomeExclusions, metronomeExclusions, sizeof(out->metronomeExclusions));
     out->valid = 1;
     return 1;
 }
@@ -136,6 +170,43 @@ int CommunityCatalog_FairyMovePalette(const CommunityCatalog *catalog, uint8_t o
     if (catalog == NULL || !catalog->valid || out == NULL) return 0;
     memcpy(out, catalog->fairyMovePalette, COMMUNITY_FAIRY_MOVE_PALETTE_BYTES);
     return 1;
+}
+
+int CommunityCatalog_ModernMove(const CommunityCatalog *catalog, unsigned move, uint8_t out[16])
+{
+    if (!catalog || !catalog->valid || !out || move < COMMUNITY_MODERN_MOVE_FIRST
+        || move >= COMMUNITY_MODERN_MOVE_FIRST + COMMUNITY_MODERN_MOVE_COUNT) return 0;
+    memcpy(out, catalog->modernMoves[move - COMMUNITY_MODERN_MOVE_FIRST], 16);
+    return 1;
+}
+
+int CommunityCatalog_StatStage(const CommunityCatalog *catalog, unsigned move, uint8_t out[12])
+{
+    if (!catalog || !catalog->valid || !out) return 0;
+    for (size_t i = 0; i < COMMUNITY_STAT_STAGE_COUNT; i++) {
+        if (Read16(catalog->statStages[i]) == move) {
+            memcpy(out, catalog->statStages[i], 12);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int CommunityCatalog_SideEffectScript(const CommunityCatalog *catalog, unsigned pointer, unsigned *out)
+{
+    if (!catalog || !catalog->valid || !out || pointer < COMMUNITY_SIDE_EFFECT_FIRST
+        || pointer >= COMMUNITY_SIDE_EFFECT_FIRST + COMMUNITY_SIDE_EFFECT_COUNT) return 0;
+    *out = Read32(catalog->sideEffectScripts[pointer - COMMUNITY_SIDE_EFFECT_FIRST]);
+    return 1;
+}
+
+int CommunityCatalog_MetronomeExcluded(const CommunityCatalog *catalog, unsigned move)
+{
+    if (!catalog || !catalog->valid) return 0;
+    for (size_t i = 0; i < COMMUNITY_METRONOME_EXCLUSION_COUNT; i++) {
+        if (Read16(catalog->metronomeExclusions[i]) == move) return 1;
+    }
+    return 0;
 }
 
 static int ModernIndex(unsigned species)

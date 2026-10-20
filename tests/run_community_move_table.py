@@ -35,6 +35,6 @@ with tempfile.TemporaryDirectory(prefix="move-table-", dir=scratch) as directory
     subprocess.run([*flags, "-DCommunityCatalog_Runtime=CatalogOfflineRuntime", "-c", str(root / "src/port/community_catalog.c"), "-o", str(catalog)], check=True, env=env)
     executable = temp / ("moves.exe" if os.name == "nt" else "moves")
     subprocess.run([*flags, "-DPLATINUM_COMMUNITY_CLIENT=1", str(root / "src/move_table.c"), str(root / "src/overlay011/move_palettes.c"), str(root / "src/port/community_modern_rules.c"), str(root / "src/port/community_learnset.c"), str(root / "tests/community_move_table_test.c"), str(catalog), "-o", str(executable)], check=True, env=env)
-    for provider, selection, expected in ((0, "1", 0), (1, "0", 0), (1, "yes", 0), (1, "1", 1)):
-        run_env = {**env, "PLATINUM_COMMUNITY_MODERN_RULES": selection}
-        subprocess.run([str(executable), str(provider), str(expected)], check=True, env=run_env)
+    for provider, selection, ability_selection, expected, updates in ((0, "1", "1", 0, 0), (1, "0", "1", 0, 0), (1, "yes", "1", 0, 0), (1, "1", "0", 1, 0), (1, "1", "yes", 1, 0), (1, "1", "1", 1, 1)):
+        run_env = {**env, "PLATINUM_COMMUNITY_MODERN_RULES": selection, "PLATINUM_COMMUNITY_0110_ABILITIES": ability_selection}
+        subprocess.run([str(executable), str(provider), str(expected), str(updates)], check=True, env=run_env)
