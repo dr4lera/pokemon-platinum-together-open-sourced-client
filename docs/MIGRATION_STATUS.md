@@ -13,8 +13,10 @@ prepared, unmodified copy of the supplied game.
   `35067868f64f23d25d17ac3e536cfdd9a7f40523`, based on pret/pokeplatinum and libntr.
 - The reference executable has both signed disk-file checks and a code-memory
   watchdog. This migration does not patch or disable them; it builds another client.
-- Private decompilation is a behavioral reference, not published source in this
-  fork. No complete 1:1 client reconstruction or native feature parity is claimed.
+- Decompilation is a behavioral reference, not original source recovered by this
+  fork. The current milestone keeps that reference private. Permission records
+  are retained privately; preserve third-party notices in any later work. No complete
+  1:1 client reconstruction or native feature parity is claimed.
 
 ## Acceptance matrix
 
@@ -29,6 +31,7 @@ prepared, unmodified copy of the supplied game.
 | Accounts, friends, Inverna | Our backend implemented and tested | Own native client protocol integration |
 | Co-op/relay, battles, trades | User-confirmed on reference clients | Own client implementation and two-client parity checks |
 | Modern species, abilities, forms, moves | Present in supplied 0.1.7 assets/code | Version-pinned catalog and complete battle behavior coverage |
+| Learnset representation | Bounded separate move/level API and legacy decoder; engine consumers compile; C checks include IDs above 511 | Modern record provider/catalog and runtime verification |
 | Saves/trade recovery | Reference format and journal partly inspected | Own compatible IO, closed-copy migration, interruption checks |
 | Rendering, controls, audio, story | Public base engine available | Match reference behavior and chosen/custom trainer appearances |
 | 0.1.10 additions | Announced; artifact unavailable | Released artifact and separate comparison |

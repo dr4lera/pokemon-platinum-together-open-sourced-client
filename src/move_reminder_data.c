@@ -5,11 +5,9 @@
 
 #include "heap.h"
 #include "pokemon.h"
+#include "port/community_learnset.h"
 
 #define MAX_NUMBER_REMINDER_MOVES 22
-
-#define GET_LEVEL(move) ((move & 0xfe00) >> 9)
-#define GET_MOVE(move)  ((move & 0x1ff) >> 0)
 
 MoveReminderData *MoveReminderData_Alloc(enum HeapID heapID)
 {
@@ -25,7 +23,7 @@ void MoveReminderData_Free(MoveReminderData *data)
 
 u16 *MoveReminderData_GetMoves(Pokemon *mon, enum HeapID heapID)
 {
-    u8 h, i, j;
+    u8 i;
 
     u16 species = Pokemon_GetValue(mon, MON_DATA_SPECIES, NULL);
     u8 form = Pokemon_GetValue(mon, MON_DATA_FORM, NULL);
@@ -36,44 +34,12 @@ u16 *MoveReminderData_GetMoves(Pokemon *mon, enum HeapID heapID)
         currentMoves[i] = Pokemon_GetValue(mon, MON_DATA_MOVE1 + i, NULL);
     }
 
-    u16 *levelUpMoves = Heap_Alloc(heapID, MAX_NUMBER_REMINDER_MOVES * sizeof(u16));
+    CommunityLearnset *learnset = Heap_Alloc(heapID, sizeof(CommunityLearnset));
     u16 *reminderMoves = Heap_Alloc(heapID, MAX_NUMBER_REMINDER_MOVES * sizeof(u16));
 
-    Pokemon_LoadLevelUpMovesOf(species, form, levelUpMoves);
-
-    j = 0;
-
-    for (i = 0; i < MAX_NUMBER_REMINDER_MOVES; i++) {
-        if (levelUpMoves[i] == LEVEL_UP_MOVESET_TERMINATOR) {
-            reminderMoves[j] = LEVEL_UP_MOVESET_TERMINATOR;
-            break;
-        } else if (GET_LEVEL(levelUpMoves[i]) > level) {
-            continue;
-        } else {
-            levelUpMoves[i] = GET_MOVE(levelUpMoves[i]);
-
-            for (h = 0; h < LEARNED_MOVES_MAX; h++) {
-                if (levelUpMoves[i] == currentMoves[h]) {
-                    break;
-                }
-            }
-
-            if (h == LEARNED_MOVES_MAX) {
-                for (h = 0; h < j; h++) {
-                    if (reminderMoves[h] == levelUpMoves[i]) {
-                        break;
-                    }
-                }
-
-                if (h == j) {
-                    reminderMoves[j] = levelUpMoves[i];
-                    j++;
-                }
-            }
-        }
-    }
-
-    Heap_Free(levelUpMoves);
+    Pokemon_LoadCommunityLearnsetOf(species, form, learnset);
+    CommunityLearnset_ReminderMoves(learnset, level, currentMoves, LEARNED_MOVES_MAX, reminderMoves, MAX_NUMBER_REMINDER_MOVES);
+    Heap_Free(learnset);
 
     return reminderMoves;
 }

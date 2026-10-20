@@ -15,6 +15,8 @@ Checks run:
 python tests/run_community_rules.py
   community level-cap rules: passed
   community level-cap configuration: passed
+python tests/run_community_learnsets.py
+  community learnsets: decoder, bounded consumers and actual Move Reminder passed
 gcc -std=c99 -Wall -Wextra -Werror -Iinclude tests/capture_rules_core_test.c ...
   capture rules core: target eligibility and transactional debit checks passed
 ninja -C build_win64 -j 8 main.exe
@@ -26,6 +28,12 @@ against small game API doubles. The capture checks exercise eligibility and
 transactional inventory behavior. Independent read-only reviews covered engine
 call sites, OT provenance, post-bonus EXP ordering, Candy/DayCare guards and
 capture authorization/target lifetime; those reviews did not execute a game.
+The learnset checks exercise the actual record API and Move Reminder consumer,
+including legacy ordering, malformed inputs and synthetic move IDs above 511.
+Review also caught an ARM file-handle leak in an existing archive-size helper
+that the new loader would have called. The loader now owns and closes its archive
+on every path, avoiding a change to the old helper's behavior. The final Windows
+client links with that fix.
 
 No original installation, running game or player save was modified for these
 checks. No native gameplay, full asset packaging, new-client networking, modern

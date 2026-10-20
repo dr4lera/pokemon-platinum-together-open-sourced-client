@@ -1,4 +1,5 @@
 #include "pokemon.h"
+#include "port/community_learnset.h"
 
 #include <nitro.h>
 #include <string.h>
@@ -3825,18 +3826,18 @@ u16 Pokemon_GetBaseSpeciesForBattle(const u16 species)
 static void BoxPokemon_SetDefaultMoves(BoxPokemon *boxMon)
 {
     BOOL reencrypt; // must pre-declare to match
-    u16 *monLevelUpMoves = Heap_Alloc(HEAP_ID_SYSTEM, sizeof(SpeciesLearnset));
+    CommunityLearnset *learnset = Heap_Alloc(HEAP_ID_SYSTEM, sizeof(CommunityLearnset));
     reencrypt = BoxPokemon_EnterDecryptionContext(boxMon);
 
     u16 monSpecies = BoxPokemon_GetValue(boxMon, MON_DATA_SPECIES, NULL);
     int monForm = BoxPokemon_GetValue(boxMon, MON_DATA_FORM, NULL);
     u8 monLevel = BoxPokemon_GetLevel(boxMon);
 
-    Pokemon_LoadLevelUpMovesOf(monSpecies, monForm, monLevelUpMoves);
+    Pokemon_LoadCommunityLearnsetOf(monSpecies, monForm, learnset);
 
-    for (int i = 0; monLevelUpMoves[i] != LEARNSET_SENTINEL_ENTRY; i++) {
-        if ((monLevelUpMoves[i] & 0xFE00) <= monLevel << 9) {
-            u16 monLevelUpMoveID = monLevelUpMoves[i] & 0x1FF;
+    for (size_t i = 0; i < learnset->count; i++) {
+        if (learnset->entries[i].level <= monLevel) {
+            u16 monLevelUpMoveID = learnset->entries[i].move;
             if (BoxPokemon_AddMove(boxMon, monLevelUpMoveID) == LEARNSET_ALL_SLOTS_FILLED) {
                 BoxPokemon_ReplaceMove(boxMon, monLevelUpMoveID);
             }
@@ -3845,7 +3846,7 @@ static void BoxPokemon_SetDefaultMoves(BoxPokemon *boxMon)
         }
     }
 
-    Heap_Free(monLevelUpMoves);
+    Heap_Free(learnset);
     BoxPokemon_ExitDecryptionContext(boxMon, reencrypt);
 }
 
@@ -3941,33 +3942,19 @@ static void BoxPokemon_SetMoveSlot(BoxPokemon *boxMon, u16 moveID, u8 moveSlot)
 u16 Pokemon_LevelUpMove(Pokemon *mon, int *index, u16 *moveID)
 {
     u16 result = MOVE_NONE;
-    u16 *monLevelUpMoves = Heap_Alloc(HEAP_ID_SYSTEM, sizeof(SpeciesLearnset));
+    CommunityLearnset *learnset = Heap_Alloc(HEAP_ID_SYSTEM, sizeof(CommunityLearnset));
     u16 monSpecies = Pokemon_GetValue(mon, MON_DATA_SPECIES, NULL);
     int monForm = Pokemon_GetValue(mon, MON_DATA_FORM, NULL);
     u8 monLevel = Pokemon_GetValue(mon, MON_DATA_LEVEL, NULL);
 
-    Pokemon_LoadLevelUpMovesOf(monSpecies, monForm, monLevelUpMoves);
-
-    if (monLevelUpMoves[*index] == LEARNSET_SENTINEL_ENTRY) {
-        Heap_Free(monLevelUpMoves);
-        return MOVE_NONE;
-    }
-
-    while ((monLevelUpMoves[*index] & 0xFE00) != monLevel << 9) {
-        (*index)++;
-        if (monLevelUpMoves[*index] == LEARNSET_SENTINEL_ENTRY) {
-            Heap_Free(monLevelUpMoves);
-            return MOVE_NONE;
-        }
-    }
-
-    if ((monLevelUpMoves[*index] & 0xFE00) == monLevel << 9) {
-        *moveID = monLevelUpMoves[*index] & 0x1FF;
-        (*index)++;
+    Pokemon_LoadCommunityLearnsetOf(monSpecies, monForm, learnset);
+    size_t cursor = *index < 0 ? learnset->count : (size_t)*index;
+    if (CommunityLearnset_NextAtLevel(learnset, monLevel, &cursor, moveID)) {
         result = Pokemon_AddMove(mon, *moveID);
     }
+    *index = (int)cursor;
 
-    Heap_Free(monLevelUpMoves);
+    Heap_Free(learnset);
     return result;
 }
 
@@ -4134,18 +4121,11 @@ s8 Pokemon_GetFlavorAffinityOf(u32 monPersonality, enum Flavor flavor)
 
 int Pokemon_LoadLevelUpMoveIdsOf(int monSpecies, int monForm, u16 *monLevelUpMoveIDs)
 {
-    u16 *monLevelUpMoves = Heap_Alloc(HEAP_ID_SYSTEM, sizeof(SpeciesLearnset));
-
-    Pokemon_LoadLevelUpMovesOf(monSpecies, monForm, monLevelUpMoves);
-
-    int result = 0;
-
-    while (monLevelUpMoves[result] != LEARNSET_ALL_SLOTS_FILLED) {
-        monLevelUpMoveIDs[result] = monLevelUpMoves[result] & 0x1FF;
-        result++;
-    }
-
-    Heap_Free(monLevelUpMoves);
+    CommunityLearnset *learnset = Heap_Alloc(HEAP_ID_SYSTEM, sizeof(CommunityLearnset));
+    Pokemon_LoadCommunityLearnsetOf(monSpecies, monForm, learnset);
+    /* The breeding consumer owns 50 entries; this API exports at most 20. */
+    int result = (int)CommunityLearnset_CopyMoveIds(learnset, monLevelUpMoveIDs, COMMUNITY_LEARNSET_CAPACITY);
+    Heap_Free(learnset);
     return result;
 }
 
@@ -4592,6 +4572,37 @@ void Pokemon_LoadLevelUpMovesOf(int monSpecies, int monForm, u16 *monLevelUpMove
 {
     monSpecies = Pokemon_GetFormNarcIndex(monSpecies, monForm);
     NARC_ReadWholeMemberByIndexPair(monLevelUpMoves, NARC_INDEX_POKETOOL__PERSONAL__WOTBL, monSpecies);
+}
+
+enum CommunityLearnsetResult Pokemon_LoadCommunityLearnsetOf(int species, int form, CommunityLearnset *out)
+{
+    if (out == NULL) {
+        return COMMUNITY_LEARNSET_INVALID;
+    }
+    out->count = 0;
+    int member = Pokemon_GetFormNarcIndex(species, form);
+    NARC *narc = NARC_ctor(NARC_INDEX_POKETOOL__PERSONAL__WOTBL, HEAP_ID_SYSTEM);
+    if (narc == NULL) {
+        return COMMUNITY_LEARNSET_INVALID;
+    }
+    if (member < 0 || member >= NARC_GetFileCount(narc)) {
+        NARC_dtor(narc);
+        return COMMUNITY_LEARNSET_INVALID;
+    }
+    u32 bytes = NARC_GetMemberSize(narc, member);
+    /* Legacy members may include alignment padding. Never read more than the
+     * twenty records plus terminator, or accept a larger legacy-format member. */
+    if (bytes < sizeof(uint16_t) || bytes > sizeof(SpeciesLearnset) || bytes % sizeof(uint16_t) != 0) {
+        NARC_dtor(narc);
+        return COMMUNITY_LEARNSET_INVALID;
+    }
+    uint16_t packed[COMMUNITY_LEARNSET_CAPACITY + 1];
+    if (bytes > sizeof(packed)) {
+        bytes = sizeof(packed);
+    }
+    NARC_ReadFromMember(narc, member, 0, bytes, packed);
+    NARC_dtor(narc);
+    return CommunityLearnset_DecodeLegacy(packed, bytes / sizeof(*packed), out);
 }
 
 void PlayCryWithParams(ChatotCry *chatotCry, enum PokemonCryMod cryMod, u16 species, int form, int pan, int volume, int forceDefaultChatot, enum HeapID heapID)
