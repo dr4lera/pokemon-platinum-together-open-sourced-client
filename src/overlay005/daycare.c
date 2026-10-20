@@ -24,6 +24,9 @@
 #include "message_util.h"
 #include "party.h"
 #include "pokemon.h"
+#ifdef SDK_PORT
+#include "port/community_rules.h"
+#endif
 #include "save_player.h"
 #include "savedata.h"
 #include "string_gf.h"
@@ -181,7 +184,11 @@ static int Daycare_MoveToPartyFromDaycareMon(Party *party, DaycareMon *daycareMo
 
     if (Pokemon_GetValue(mon, MON_DATA_LEVEL, NULL) != MAX_POKEMON_LEVEL) {
         experience = Pokemon_GetValue(mon, MON_DATA_EXPERIENCE, NULL);
-        experience += DaycareMon_GetSteps(daycareMon);
+        u32 gainedExp = DaycareMon_GetSteps(daycareMon);
+#ifdef SDK_PORT
+        gainedExp = CommunityRules_ClampPokemonExperience(mon, gainedExp);
+#endif
+        experience += gainedExp;
         Pokemon_SetValue(mon, MON_DATA_EXPERIENCE, (u8 *)&experience);
         ov5_021E63E0(mon);
     }
@@ -219,6 +226,9 @@ int BoxPokemon_GiveExperience(BoxPokemon *boxMon, u32 givenExp)
     BoxPokemon_Copy(boxMon, boxMonRef);
 
     exp = BoxPokemon_GetValue(boxMonRef, MON_DATA_EXPERIENCE, NULL);
+#ifdef SDK_PORT
+    givenExp = CommunityRules_ClampPokemonExperience(mon, givenExp);
+#endif
     exp += givenExp;
 
     BoxPokemon_SetValue(boxMonRef, MON_DATA_EXPERIENCE, (u8 *)&exp);

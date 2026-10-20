@@ -1,0 +1,21 @@
+name: Community source rules
+on:
+  push:
+    branches: [community-client]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: cybervisi0n/libntr
+          ref: 1555d911ac80c0190ac1c321f99f1323de8b3c09
+          path: subprojects/libntr
+      - run: python3 tests/run_community_rules.py
+      - run: gcc -std=c99 -Wall -Wextra -Werror -Iinclude tests/capture_rules_core_test.c -o /tmp/capture-rules
+      - run: /tmp/capture-rules

@@ -121,6 +121,7 @@ typedef struct BattleScriptTaskData {
     int flag;
     int seqNum;
     int ball;
+    int captureTarget;
     int tmpData[8];
     void *tmpPtr[2];
 } BattleScriptTaskData;
@@ -205,6 +206,13 @@ struct BattleContext {
     int meFirstTurnOrder;
 
     BattleScriptTaskData *taskData;
+    /* One ordinary throw authorization, consumed by the capture script. */
+    BOOL captureAuthorized;
+    int captureActor;
+    int captureTarget;
+    int captureBall;
+    int captureActionTurn;
+    u32 captureActionsUsedMask;
     void *tmpData;
 
     u32 fieldConditionsMask;

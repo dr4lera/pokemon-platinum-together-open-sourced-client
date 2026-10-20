@@ -521,6 +521,7 @@ pokeplatinum_c = files(
     'battle/trainer_ai/trainer_ai.c',
     'battle/battle_main.c',
     'battle/battle_system.c',
+    'battle/capture_rules.c',
     'battle/battle_script.c',
     'battle/battle_controller_player.c',
     'battle/battle_lib.c',
@@ -1016,6 +1017,8 @@ pokeplatinum_c = files(
 if(build_target != 'arm')
 pokeplatinum_c += files(
     'port/charcode_convert.c',
+    'port/community_rules.c',
+    'port/community_rules_game.c',
     'port/debug_field.c',
     'port/sim_config_prj.c',
     'port/sim_gui_prj.cpp',

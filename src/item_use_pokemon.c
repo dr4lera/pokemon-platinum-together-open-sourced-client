@@ -16,6 +16,9 @@
 #include "move_table.h"
 #include "party.h"
 #include "pokemon.h"
+#ifdef SDK_PORT
+#include "port/community_rules.h"
+#endif
 
 #define PP_UP_REQUIREMENT 5 // Moves with fewer max PP can't benefit from PP Ups (e.g. Sketch)
 
@@ -169,7 +172,11 @@ u8 Pokemon_CheckItemEffects(Pokemon *mon, u16 itemId, u16 moveSlot, enum HeapID 
     }
 
     if (Item_Get(item, ITEM_PARAM_LEVEL_UP)) {
-        if (Pokemon_GetValue(mon, MON_DATA_LEVEL, NULL) < MAX_POKEMON_LEVEL) {
+        if (Pokemon_GetValue(mon, MON_DATA_LEVEL, NULL) < MAX_POKEMON_LEVEL
+#ifdef SDK_PORT
+            && !CommunityRules_PokemonAtLevelCap(mon)
+#endif
+        ) {
             Heap_Free(item);
             return TRUE;
         }
@@ -289,7 +296,11 @@ u8 Pokemon_ApplyItemEffects(Pokemon *mon, u16 itemId, u16 moveSlot, u16 location
     vApplyLevel = Pokemon_GetValue(mon, MON_DATA_LEVEL, NULL);
 
     if (Item_Get(item, ITEM_PARAM_LEVEL_UP)) {
-        if (vApplyLevel < MAX_POKEMON_LEVEL) {
+        if (vApplyLevel < MAX_POKEMON_LEVEL
+#ifdef SDK_PORT
+            && !CommunityRules_PokemonAtLevelCap(mon)
+#endif
+        ) {
             Pokemon_IncreaseValue(mon, MON_DATA_EXPERIENCE, Pokemon_GetExpToNextLevel(mon));
             Pokemon_CalcLevelAndStats(mon);
 

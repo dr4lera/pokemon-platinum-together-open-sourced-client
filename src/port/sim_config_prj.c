@@ -30,6 +30,10 @@ static int IniHandler(void* user, const char* section, const char* name,
         config->enableAsserts = StringToBool(value);
     }
 
+    if(MATCH("CommunityRules", "WorldLevelCaps")) {
+        config->worldLevelCaps = StringToBool(value);
+    }
+
     // Cheats section
     if(MATCH("Cheats", "WalkThroughWalls")) {
         config->walkThroughWalls = StringToBool(value);
@@ -42,6 +46,7 @@ static int IniHandler(void* user, const char* section, const char* name,
     if(MATCH("Cheats", "RunFromTrainerBattles")) {
         config->runFromTrainerBattles = StringToBool(value);
     }
+    return 1;
 }
 
 static const char * BoolToString(BOOL arg)
@@ -73,6 +78,7 @@ void SIM_Config_prj_LoadDefaults(SIM_Config_prj_type * aConfig)
   aConfig->enable60fpsSpeedFix = TRUE;
   aConfig->enableAsserts = FALSE;
   aConfig->breakDebuggerOnGfAssert = FALSE;
+  aConfig->worldLevelCaps = TRUE;
 
   // Cheats section
   aConfig->walkThroughWalls = FALSE;
@@ -95,6 +101,9 @@ void SIM_Config_prj_SaveConfigFile(SIM_Config_prj_type * aConfig)
     fprintf(configFile, "EnableAsserts=%s\n", BoolToString(aConfig->enableAsserts));
     fprintf(configFile, "BreakDebuggerOnAssert=%s\n", BoolToString(aConfig->breakDebuggerOnGfAssert));
     fprintf(configFile, "\n");
+
+    fprintf(configFile, "[CommunityRules]\n");
+    fprintf(configFile, "WorldLevelCaps=%s\n\n", BoolToString(aConfig->worldLevelCaps));
 
     fprintf(configFile, "[Cheats]\n");
     fprintf(configFile, "WalkThroughWalls=%s\n", BoolToString(aConfig->walkThroughWalls));

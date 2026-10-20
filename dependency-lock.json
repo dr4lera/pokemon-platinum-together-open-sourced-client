@@ -1,0 +1,18 @@
+{
+  "engine": {
+    "url": "https://github.com/cybervisi0n/pokeplatinum",
+    "commit": "35067868f64f23d25d17ac3e536cfdd9a7f40523"
+  },
+  "meson": {
+    "version": "1.12.0",
+    "commit": "ab4508e6abe338a3bd2e6eb5da1d18b8cf55dc93"
+  },
+  "subprojects": {
+    "libntr": "1555d911ac80c0190ac1c321f99f1323de8b3c09",
+    "libntrsystem": "cd778c9d5e45869f8ecb8245b316ac20ea576958",
+    "libntrwifi": "067dabb137dfaf80b8ceeb3b3c4a7256bfabc3e0",
+    "libntrdwc": "16246ba7b4269e6686f3e4da068e3c996a103739",
+    "libvct": "a34ad47fc0d7d964483c287759b704b3b1f3b967",
+    "metang": "d616519ce37bc9ceef556969a1ca2dc64bf88390"
+  }
+}

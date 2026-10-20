@@ -17,6 +17,7 @@
 #include "battle/battle_controller_player.h"
 #include "battle/battle_lib.h"
 #include "battle/battle_system.h"
+#include "battle/capture_rules.h"
 #include "battle/common.h"
 #include "battle/message_defs.h"
 
@@ -918,6 +919,14 @@ void BattleController_EmitShowBagMenu(BattleSystem *battleSys, BattleContext *ba
         message.substitute = FALSE;
     }
 
+    /* Refresh these hints from actual active battlers for every mode shape.
+     * Selection and execution both apply the same live policy as well.
+     */
+    int captureTarget;
+    enum CaptureRuleResult captureResult = CaptureRules_Check(battleSys, battleCtx, battler, &captureTarget);
+    message.hasTwoOpponents = captureResult == CAPTURE_RULE_MULTIPLE_TARGETS;
+    message.semiInvulnerable = captureResult == CAPTURE_RULE_HIDDEN;
+    message.substitute = captureResult == CAPTURE_RULE_SUBSTITUTE;
     SendMessage(battleSys, COMM_RECIPIENT_CLIENT, battler, &message, sizeof(BagMenuMessage));
 }
 

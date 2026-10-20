@@ -28,6 +28,7 @@
 #include "battle/battle_main.h"
 #include "battle/battle_script.h"
 #include "battle/battle_system.h"
+#include "battle/capture_rules.h"
 #include "battle/common.h"
 #include "battle/message_defs.h"
 
@@ -1968,11 +1969,11 @@ static void BattleControllerPlayer_ItemCommand(BattleSystem *battleSys, BattleCo
             break;
 
         case ITEM_BATTLE_CATEGORY_POKE_BALLS:
-            nextSeq = subscript_throw_pokeball;
-            if ((BattleSystem_GetBattleType(battleSys) & BATTLE_TYPE_TRAINER) == FALSE
-                && (BattleSystem_GetBattleType(battleSys) & BATTLE_TYPE_CATCH_TUTORIAL) == FALSE) {
-                Bag_TryRemoveItem(BattleSystem_GetBag(battleSys), used->item, 1, HEAP_ID_BATTLE);
+            if (CaptureRules_AuthorizeThrow(battleSys, battleCtx, battleCtx->attacker, used->item) == CAPTURE_RULE_OK) {
+                nextSeq = subscript_throw_pokeball;
                 Bag_SetLastBattleItemUsed(BattleSystem_GetBagCursor(battleSys), used->item, used->category);
+            } else {
+                nextSeq = subscript_but_it_failed;
             }
 
             break;
@@ -2121,6 +2122,14 @@ enum ObedienceCheckResult {
  */
 static int BattleControllerPlayer_CheckObedience(BattleSystem *battleSys, BattleContext *battleCtx, int *nextSeq)
 {
+#ifdef PLATINUM_COMMUNITY_CLIENT
+    // Preserve real OT/trade provenance. Progression is enforced by the shared
+    // EXP cap, rather than an additional foreign-trainer badge restriction.
+    (void)battleSys;
+    (void)battleCtx;
+    (void)nextSeq;
+    return OBEY_CHECK_SUCCESS;
+#else
     int rand1, rand2; // must be defined up here to match
     u8 maxLevel = 0;
     u32 battleType = BattleSystem_GetBattleType(battleSys);
@@ -2235,6 +2244,7 @@ static int BattleControllerPlayer_CheckObedience(BattleSystem *battleSys, Battle
 
     *nextSeq = subscript_disobey_do_nothing;
     return OBEY_CHECK_DO_NOTHING;
+#endif
 }
 
 /**

@@ -1,87 +1,31 @@
-# Pokémon Platinum PC Port
+# Platinum Together community gameplay client
 
-This is an experimental PC port of Pokemon Platinum based on the [pret](https://github.com/pret/pokeplatinum) decompilation project. It is powered by the [libntr](https://github.com/cybervisi0n/libntr) suite, a collection of libraries that replace the NitroSDK to allow for easy porting of Nintendo DS titles.
+Source-controlled gameplay client migration for the community launcher and private
+servers. This is a separately maintained fork of the public Platinum PC port,
+not the original Platinum Together source. The target is matching 0.1.7 gameplay,
+with the explicitly requested cap, OT and ball-use fixes.
 
-Feel free to join us on [Discord](https://discord.gg/ZgtPszuBeN) for discussion or support.
+**Migration in progress.** Together co-op, accounts/city integration, modern
+content, trade recovery, custom trainer art and complete 1:1 parity are not yet
+implemented or verified in this client. Working native battles/trades previously
+confirmed by the user ran on separately prepared reference clients.
 
-It should be possible to play the game from start to finish, but there could be crashes and graphical bugs. 
+Implemented source rules:
 
-Generative AI/LLM shortcuts were **not** used in the creation of this project and the libntr libraries. **Pull requests or code suggestions using AI will be rejected.**
+- World EXP caps apply regardless of OT, including Candy and DayCare routes.
+- Foreign OT does not add badge-based disobedience; real provenance is preserved.
+- Ordinary balls require a wild battle and exactly one active opponent.
+- Execution debits one available ball before throwing; stale/repeated actions fail.
+- The existing caught-species battle HUD pipeline is retained.
 
-Project goals:
-* Create a native port of pokeplatinum for 64-bit PC platforms
-* * Long term: Create native ports for homebrew on various game consoles
-* Facilitate modding by allowing both a PC port and DS ROM to be compiled and debugged from the same source tree
-* Support all WiFi and multiplayer features
+[Build](docs/BUILD_COMMUNITY.md) · [Migration matrix](docs/MIGRATION_STATUS.md) ·
+[Level caps](docs/COMMUNITY_LEVEL_CAPS.md) · [Provenance](THIRD_PARTY_NOTICES.md) ·
+[Upstream documentation](docs/UPSTREAM_README.md)
 
-## Setup Guide
-To run the [pre-built binaries found in the releases tab](https://github.com/cybervisi0n/pokeplatinum/releases), **you MUST dump and provide your own US ROM of Pokémon Platinum (CPUE01).** On first launch, you will be prompted to select your .nds ROM file as seen in the images below:
+The client is built from source. Users supply their own compatible ROM/assets.
+No installed Together executable, private decompilation, saves or account keys are
+included. This fork's community additions use GPL-3.0-or-later; upstream sources
+and dependencies retain their respective notices and terms. See LICENSE-COMMUNITY.
 
-![ROM extraction dialog](images/RomExtraction.png)
-
-* After this has been completed once, you can launch the game simply by running main.exe.
-* Access in-game settings and debug tools by pressing the grave accent/tilde key
-
-### Playing in other languages
-Currently, this project only supports the USA version of the game, however, it is possible to change the language of the majority of the in-game text by replacing some files. 
-Once a ROM has been loaded, its contents will be extracted in the same directory as main.exe. Replace the following files with copies from another language:
-
- * msgdata/msg.narc
- * msgdata/pl_msg.narc
- * msgdata/scenario/scr_msg.narc
-
-## Forking Guidelines
-You are welcome to create forks of this project, but do not publish any releases containing the compiled assets alongside PC port binaries.
-
-If you publish releases, you are responsible for also complying with the MIT license on libntr by including the copyright and disclaimer.
-
-cybervisi0n is not affiliated with any forks of this project.
-
-## Building on Linux
-### Dockerized build (Recommended)
-This only requires Docker to be installed and setup on your system. The drun.sh script is used to build the docker image and run build commands in it. Build with:
-* ./drun.sh make linux
-
-The container image will automatically be built the first time this script is run.
-
-### Non-container build
-Required Packages (arch linux):
-* nasm
-* enet
-* arm-none-eabi-gcc (required by the base pret project)
-* ninja
-* flex
-* bison
-
-To build: 
-* make linux
-
-Alternatively:
-* meson setup build
-* cd build
-* meson configure -Dbuild_target=linux
-* meson compile
-
-You can also build a ROM from the same source tree, just run:
-* make
-
-## Building on Windows
-From a freshly cloned repo, run the "Install_MSys2.ps1" script in powershell. This will create a portable MSys2 build environment with all dependencies installed in the repo. This only has to be done once per repo.
-
-To build, run "Launch_MSys2.ps1" and it will launch a MSys2 bash shell. From here, run "make win64" to build.
-
-## NX Build Target (working, but poor performance)
-This build target requires DevKitA64, this is already installed in the build container.
-* ./drun.sh make nx
-
-## Notes
-Target executable will be in ./build_(platform)/pokeplatinum directory.
-ROM will be built in /build directory
-
-firmware.bin does not contain any real DS firmware, it only contains an offset address and enough space to keep the WiFi config.
-
-You can update your SDKs using "meson subprojects update"
-
-### Tracy Profiling
-To enable, run ./meson.sh configure -Dtracy_enable=true {build_folder} from the repo root. This works on Win64, Linux, and NX build targets.
-
+The separate [launcher, backend and editors](https://github.com/dr4lera/pokemon-platinum-together-open-sourced-launcher)
+remain available. New gameplay release publication is paused during migration.

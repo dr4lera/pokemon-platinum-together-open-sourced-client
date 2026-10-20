@@ -544,7 +544,7 @@ events_files = files(
 
 events_headers = []
 foreach events_file : events_files
-    events_h = events_file.full_path().split('/')[-1].split('.')[0] + '.h'
+    events_h = fs.stem(events_file) + '.h'
     events_headers += custom_target(events_h,
         output: events_h,
         input: events_file,

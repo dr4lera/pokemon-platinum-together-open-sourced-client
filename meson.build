@@ -38,7 +38,7 @@ shared_args = [
     '-D_MSL_RESTRICT=',
 ]
 else
-shared_args = ['-DPOKEPLATINUM_GENERATED_ENUM', '-g']
+ shared_args = ['-DPOKEPLATINUM_GENERATED_ENUM', '-DPLATINUM_COMMUNITY_CLIENT', '-g']
 endif
 
 if get_option('revision') == '0'

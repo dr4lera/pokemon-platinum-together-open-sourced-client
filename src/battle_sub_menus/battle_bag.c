@@ -6,6 +6,7 @@
 
 #include "battle/battle_lib.h"
 #include "battle/battle_system.h"
+#include "battle/capture_rules.h"
 #include "battle/indicator.h"
 #include "battle_sub_menus/battle_bag_buttons.h"
 #include "battle_sub_menus/battle_bag_sprites.h"
@@ -451,32 +452,31 @@ static u8 TryUseItem(BattleBag *battleBag)
             return TASK_STATE_AWAITING_TEXT_FINISH;
         }
     } else if (battleBag->currentBattlePocket == ITEM_BATTLE_CATEGORY_POKE_BALLS) {
-        if (context->hasTwoOpponents == TRUE) {
-            MessageLoader_GetString(battleBag->messageLoader, BattleBag_Text_CantUseBallTwoPokemon, battleBag->string);
-            BattleBagText_DisplayMessage(battleBag);
-            battleBag->queuedState = TASK_STATE_CLEAR_ERROR_MESSAGE;
-            return TASK_STATE_AWAITING_TEXT_FINISH;
+        int target;
+        enum CaptureRuleResult result = CaptureRules_Check(context->battleSys, BattleSystem_GetBattleContext(context->battleSys), context->battler, &target);
+        if (result == CAPTURE_RULE_OK && (!CaptureRules_IsOrdinaryBall(context->selectedBattleBagItem)
+            || Bag_GetItemQuantity(context->bag, context->selectedBattleBagItem, context->heapID) == 0)) {
+            result = CAPTURE_RULE_NO_BALL;
         }
-
-        if (context->opponentHidden == TRUE) {
-            MessageLoader_GetString(battleBag->messageLoader, BattleBag_Text_CantUseBallPokemonHidden, battleBag->string);
-            BattleBagText_DisplayMessage(battleBag);
-            battleBag->queuedState = TASK_STATE_CLEAR_ERROR_MESSAGE;
-            return TASK_STATE_AWAITING_TEXT_FINISH;
-        }
-
-        if (context->opponentSubstituted == TRUE) {
-            MessageLoader_GetString(battleBag->messageLoader, BattleBag_Text_CantUseBallPokemonSubstituted, battleBag->string);
-            BattleBagText_DisplayMessage(battleBag);
-            battleBag->queuedState = TASK_STATE_CLEAR_ERROR_MESSAGE;
-            return TASK_STATE_AWAITING_TEXT_FINISH;
-        }
-
-        Party *party = BattleSystem_GetParty(context->battleSys, context->battler);
-        PCBoxes *pcBoxes = BattleSystem_GetPCBoxes(context->battleSys);
-
-        if (Party_GetCurrentCount(party) == MAX_PARTY_SIZE && PCBoxes_FirstEmptyBox(pcBoxes) == MAX_PC_BOXES) {
-            MessageLoader_GetString(battleBag->messageLoader, BattleBag_Text_CantUseBallNoRoomLeft, battleBag->string);
+        if (result != CAPTURE_RULE_OK) {
+            int message = BattleBag_Text_ItemHasNoUse;
+            switch (result) {
+            case CAPTURE_RULE_MULTIPLE_TARGETS:
+                message = BattleBag_Text_CantUseBallTwoPokemon;
+                break;
+            case CAPTURE_RULE_HIDDEN:
+                message = BattleBag_Text_CantUseBallPokemonHidden;
+                break;
+            case CAPTURE_RULE_SUBSTITUTE:
+                message = BattleBag_Text_CantUseBallPokemonSubstituted;
+                break;
+            case CAPTURE_RULE_NO_ROOM:
+                message = BattleBag_Text_CantUseBallNoRoomLeft;
+                break;
+            default:
+                break;
+            }
+            MessageLoader_GetString(battleBag->messageLoader, message, battleBag->string);
             BattleBagText_DisplayMessage(battleBag);
             battleBag->queuedState = TASK_STATE_CLEAR_ERROR_MESSAGE;
             return TASK_STATE_AWAITING_TEXT_FINISH;

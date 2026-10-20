@@ -34,6 +34,7 @@
 #include "battle/battle_main.h"
 #include "battle/battle_mon.h"
 #include "battle/battle_system.h"
+#include "battle/capture_rules.h"
 #include "battle/btlcmd.h"
 #include "battle/common.h"
 #include "battle/terrain.h"
@@ -55,6 +56,9 @@
 #include "pokemon.h"
 #include "pokemon_icon.h"
 #include "pokemon_sprite.h"
+#ifdef SDK_PORT
+#include "port/community_rules.h"
+#endif
 #include "render_window.h"
 #include "screen_fade.h"
 #include "sound_chatot.h"
@@ -2579,12 +2583,19 @@ static BOOL BtlCmd_StartCatchMonTask(BattleSystem *battleSys, BattleContext *bat
     BattleScript_Iter(battleCtx, 1);
     BOOL safariCapture = BattleScript_Read(battleCtx);
 
+    int captureTarget = BATTLER_NONE;
+    if (safariCapture == CAPTURE_NORMAL && !CaptureRules_TakeAuthorization(battleCtx, battleCtx->msgItemTemp, &captureTarget)) {
+        BattleScript_Jump(battleCtx, NARC_INDEX_BATTLE__SKILL__SUB_SEQ, subscript_but_it_failed);
+        return FALSE;
+    }
+
     battleCtx->taskData = Heap_Alloc(HEAP_ID_BATTLE, sizeof(BattleScriptTaskData));
     battleCtx->taskData->battleSys = battleSys;
     battleCtx->taskData->battleCtx = battleCtx;
     battleCtx->taskData->seqNum = 0;
     battleCtx->taskData->flag = safariCapture;
     battleCtx->taskData->ball = battleCtx->msgItemTemp;
+    battleCtx->taskData->captureTarget = captureTarget;
 
     SysTask_Start(BattleScript_CatchMonTask, battleCtx->taskData, 0);
 
@@ -9771,6 +9782,9 @@ static void BattleScript_GetExpTask(SysTask *task, void *inData)
                 msg.id = BattleStrings_Text_PokemonGainedABoostedExpPoints; // "{0} gained a boosted {1} Exp. Points!"
             }
 
+#ifdef SDK_PORT
+            totalExp = CommunityRules_ClampPokemonExperience(mon, totalExp);
+#endif
             u32 newExp = Pokemon_GetValue(mon, MON_DATA_EXPERIENCE, NULL);
             data->tmpData[GET_EXP_NEW_EXP] = newExp - Pokemon_GetCurrentLevelBaseExp(mon);
             newExp += totalExp;
@@ -10368,10 +10382,14 @@ static void BattleScript_CatchMonTask(SysTask *task, void *inData)
     MessageLoader *msgLoader = BattleSystem_GetMessageLoader(data->battleSys);
     paletteData = BattleSystem_GetPaletteData(data->battleSys);
     monSpriteMan = BattleSystem_GetPokemonSpriteManager(data->battleSys);
-    battler = BATTLER_ENEMY_1;
-
-    if (data->battleCtx->battlersSwitchingMask & FlagIndex(battler)) {
-        battler = BATTLER_ENEMY_2;
+    if (data->flag == CAPTURE_NORMAL) {
+        battler = data->captureTarget;
+        data->battleCtx->defender = battler;
+    } else {
+        battler = BATTLER_ENEMY_1;
+        if (data->battleCtx->battlersSwitchingMask & FlagIndex(battler)) {
+            battler = BATTLER_ENEMY_2;
+        }
     }
 
     switch (data->seqNum) {
