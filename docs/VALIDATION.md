@@ -30,6 +30,9 @@ call sites, OT provenance, post-bonus EXP ordering, Candy/DayCare guards and
 capture authorization/target lifetime; those reviews did not execute a game.
 The learnset checks exercise the actual record API and Move Reminder consumer,
 including legacy ordering, malformed inputs and synthetic move IDs above 511.
+The next checks cover the observed modern word format and 23/32-entry lists,
+while keeping the independent legacy limit at 20. The complete Windows client
+also links with those changes; modern content remains inactive.
 Review also caught an ARM file-handle leak in an existing archive-size helper
 that the new loader would have called. The loader now owns and closes its archive
 on every path, avoiding a change to the old helper's behavior. The final Windows

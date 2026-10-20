@@ -10,6 +10,8 @@ game, upstream engine, or decompiled reference was authored by this project.
 Keep Platinum Together decompilation/disassembly and all private player data
 outside this repository. Ship no installed game executables, ROMs, extracted
 runtime assets, saves, account keys, or private research.
+Keep permission correspondence private and outside this checkout. Do not put its
+text in source files, history, issues, releases, documentation or support tickets.
 
 The reconstruction target is installed Platinum Together 0.1.7 behavior, with
 the user's explicit deviations: world level caps apply regardless of original

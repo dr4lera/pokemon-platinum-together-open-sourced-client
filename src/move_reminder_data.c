@@ -7,7 +7,7 @@
 #include "pokemon.h"
 #include "port/community_learnset.h"
 
-#define MAX_NUMBER_REMINDER_MOVES 22
+#define MAX_NUMBER_REMINDER_MOVES (COMMUNITY_LEARNSET_CAPACITY + 1)
 
 MoveReminderData *MoveReminderData_Alloc(enum HeapID heapID)
 {

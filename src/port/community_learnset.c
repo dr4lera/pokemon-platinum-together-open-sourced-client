@@ -9,17 +9,59 @@ enum CommunityLearnsetResult CommunityLearnset_DecodeLegacy(const uint16_t *pack
     if (packed == NULL || words == 0) {
         return COMMUNITY_LEARNSET_INVALID;
     }
-    size_t limit = words < COMMUNITY_LEARNSET_CAPACITY + 1 ? words : COMMUNITY_LEARNSET_CAPACITY + 1;
+    size_t limit = words < COMMUNITY_LEARNSET_LEGACY_CAPACITY + 1 ? words : COMMUNITY_LEARNSET_LEGACY_CAPACITY + 1;
     for (size_t i = 0; i < limit; i++) {
         if (packed[i] == COMMUNITY_LEARNSET_TERMINATOR) {
+            out->count = i;
+            return COMMUNITY_LEARNSET_OK;
+        }
+        if (i == COMMUNITY_LEARNSET_LEGACY_CAPACITY) {
+            return COMMUNITY_LEARNSET_TOO_LONG;
+        }
+        out->entries[i].move = packed[i] & 0x1ff;
+        out->entries[i].level = packed[i] >> 9;
+    }
+    return COMMUNITY_LEARNSET_UNTERMINATED;
+}
+
+static uint32_t ReadLittleEndianWord(const uint8_t *bytes)
+{
+    return (uint32_t)bytes[0] | ((uint32_t)bytes[1] << 8)
+        | ((uint32_t)bytes[2] << 16) | ((uint32_t)bytes[3] << 24);
+}
+
+enum CommunityLearnsetResult CommunityLearnset_DecodeModern(const uint8_t *bytes, size_t length, CommunityLearnset *out)
+{
+    if (out == NULL) {
+        return COMMUNITY_LEARNSET_INVALID;
+    }
+    out->count = 0;
+    if (bytes == NULL || length < 4 || length % 4 != 0 || length > COMMUNITY_LEARNSET_MODERN_STORAGE_BYTES) {
+        return COMMUNITY_LEARNSET_INVALID;
+    }
+    size_t words = length / 4;
+    for (size_t i = 0; i < words; i++) {
+        uint32_t word = ReadLittleEndianWord(bytes + i * 4);
+        if (word == UINT32_MAX) {
+            /* Validate the observed padding convention before exposing count. */
+            for (size_t j = i + 1; j < words; j++) {
+                if (ReadLittleEndianWord(bytes + j * 4) != 0) {
+                    return COMMUNITY_LEARNSET_INVALID;
+                }
+            }
             out->count = i;
             return COMMUNITY_LEARNSET_OK;
         }
         if (i == COMMUNITY_LEARNSET_CAPACITY) {
             return COMMUNITY_LEARNSET_TOO_LONG;
         }
-        out->entries[i].move = packed[i] & 0x1ff;
-        out->entries[i].level = packed[i] >> 9;
+        uint16_t move = word & UINT16_MAX;
+        uint32_t level = word >> 16;
+        if (move == COMMUNITY_LEARNSET_TERMINATOR || level > 127) {
+            return COMMUNITY_LEARNSET_INVALID;
+        }
+        out->entries[i].move = move;
+        out->entries[i].level = (uint8_t)level;
     }
     return COMMUNITY_LEARNSET_UNTERMINATED;
 }

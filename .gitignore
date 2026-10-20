@@ -142,3 +142,7 @@ compile_commands.json
 # Cheat files
 *.dct
 *.mch
+
+# Private correspondence belongs outside the public checkout.
+/docs/REFERENCE_PERMISSION.md
+/private-permissions/

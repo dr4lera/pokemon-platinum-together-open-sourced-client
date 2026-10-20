@@ -16,6 +16,7 @@ jobs:
         with:
           python-version: '3.13'
       - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        id: msys2
         with:
           msystem: UCRT64
           update: true
@@ -32,13 +33,17 @@ jobs:
             mingw-w64-ucrt-x86_64-pkgconf
       - name: Compile source client without game installation or ROM
         shell: pwsh
+        env:
+          PT_BUILD_MSYS2_ROOT: ${{ steps.msys2.outputs.msys2-location }}
         run: |
-          $env:PATH='C:\msys64\ucrt64\bin;C:\msys64\usr\bin;'+$env:PATH
+          $env:PATH="$env:PT_BUILD_MSYS2_ROOT\ucrt64\bin;$env:PT_BUILD_MSYS2_ROOT\usr\bin;"+$env:PATH
           ./tools/community/build-win64.ps1 -Jobs 4
       - name: Check community rules
         shell: pwsh
+        env:
+          PT_BUILD_MSYS2_ROOT: ${{ steps.msys2.outputs.msys2-location }}
         run: |
-          $env:PATH='C:\msys64\ucrt64\bin;C:\msys64\usr\bin;'+$env:PATH
+          $env:PATH="$env:PT_BUILD_MSYS2_ROOT\ucrt64\bin;$env:PT_BUILD_MSYS2_ROOT\usr\bin;"+$env:PATH
           python tests/run_community_rules.py
           if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
           python tests/run_community_learnsets.py

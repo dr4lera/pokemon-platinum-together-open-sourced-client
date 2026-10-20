@@ -4,7 +4,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define COMMUNITY_LEARNSET_CAPACITY 20
+#define COMMUNITY_LEARNSET_CAPACITY 32
+#define COMMUNITY_LEARNSET_LEGACY_CAPACITY 20
+#define COMMUNITY_LEARNSET_MODERN_STORAGE_WORDS 65
+#define COMMUNITY_LEARNSET_MODERN_STORAGE_BYTES (COMMUNITY_LEARNSET_MODERN_STORAGE_WORDS * 4)
 #define COMMUNITY_LEARNSET_TERMINATOR UINT16_MAX
 
 typedef struct CommunityLearnsetEntry {
@@ -27,6 +30,10 @@ enum CommunityLearnsetResult {
 /* Legacy input remains 9 move bits / 7 level bits. Padding after its first
  * terminator is ignored. No partial result is exposed for malformed input. */
 enum CommunityLearnsetResult CommunityLearnset_DecodeLegacy(const uint16_t *packed, size_t words, CommunityLearnset *out);
+/* Modern storage uses little-endian u32 words: low16 move, high16 level.
+ * Accept at most 65 words, the first 0xffffffff terminator, and zero padding.
+ * Record output is still bounded by the separate 32-entry API capacity. */
+enum CommunityLearnsetResult CommunityLearnset_DecodeModern(const uint8_t *bytes, size_t length, CommunityLearnset *out);
 /* Separate fields support move IDs above 511 without changing legacy encoding.
  * Records retain their original order and duplicates; level 0 is permitted. */
 enum CommunityLearnsetResult CommunityLearnset_FromEntries(const CommunityLearnsetEntry *entries, size_t count, CommunityLearnset *out);

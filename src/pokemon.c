@@ -4123,7 +4123,7 @@ int Pokemon_LoadLevelUpMoveIdsOf(int monSpecies, int monForm, u16 *monLevelUpMov
 {
     CommunityLearnset *learnset = Heap_Alloc(HEAP_ID_SYSTEM, sizeof(CommunityLearnset));
     Pokemon_LoadCommunityLearnsetOf(monSpecies, monForm, learnset);
-    /* The breeding consumer owns 50 entries; this API exports at most 20. */
+    /* The breeding consumer owns 50 entries; this API exports at most 32. */
     int result = (int)CommunityLearnset_CopyMoveIds(learnset, monLevelUpMoveIDs, COMMUNITY_LEARNSET_CAPACITY);
     Heap_Free(learnset);
     return result;
@@ -4596,7 +4596,7 @@ enum CommunityLearnsetResult Pokemon_LoadCommunityLearnsetOf(int species, int fo
         NARC_dtor(narc);
         return COMMUNITY_LEARNSET_INVALID;
     }
-    uint16_t packed[COMMUNITY_LEARNSET_CAPACITY + 1];
+    uint16_t packed[COMMUNITY_LEARNSET_LEGACY_CAPACITY + 1];
     if (bytes > sizeof(packed)) {
         bytes = sizeof(packed);
     }

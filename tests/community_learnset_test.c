@@ -6,7 +6,9 @@
 #include "learnset_test_game.h"
 #include "port/community_learnset.h"
 
-static uint16_t packed[COMMUNITY_LEARNSET_CAPACITY + 2];
+static uint16_t packed[COMMUNITY_LEARNSET_LEGACY_CAPACITY + 2];
+static uint8_t modern[COMMUNITY_LEARNSET_MODERN_STORAGE_BYTES + 4];
+static size_t modernLength;
 static size_t words;
 static int useExpanded;
 static int allocations;
@@ -33,11 +35,23 @@ uint32_t Pokemon_GetValue(Pokemon *mon, int field, void *out)
 enum CommunityLearnsetResult Pokemon_LoadCommunityLearnsetOf(int species, int form, CommunityLearnset *out)
 {
     assert(species == 133 && form == 0);
-    if (useExpanded) return CommunityLearnset_FromEntries(expanded, 4, out);
+    if (useExpanded == 1) return CommunityLearnset_FromEntries(expanded, 4, out);
+    if (useExpanded == 2) return CommunityLearnset_DecodeModern(modern, modernLength, out);
     return CommunityLearnset_DecodeLegacy(packed, words, out);
 }
 
 static uint16_t Pack(unsigned level, unsigned move) { return (level << 9) | move; }
+static void WriteModernWord(size_t index, uint32_t word)
+{
+    for (size_t i = 0; i < 4; i++) modern[index * 4 + i] = word >> (i * 8);
+}
+static void MakeModern(size_t count)
+{
+    for (size_t i = 0; i < sizeof(modern); i++) modern[i] = 0;
+    for (size_t i = 0; i < count; i++) WriteModernWord(i, (1u << 16) | (512 + i));
+    WriteModernWord(count, UINT32_MAX);
+    modernLength = COMMUNITY_LEARNSET_MODERN_STORAGE_BYTES;
+}
 
 int main(void)
 {
@@ -86,7 +100,45 @@ int main(void)
     records[0].move = 700;
     records[0].level = 128;
     assert(CommunityLearnset_FromEntries(records, 5, &learnset) == COMMUNITY_LEARNSET_INVALID && learnset.count == 0);
-    assert(CommunityLearnset_FromEntries(NULL, 21, &learnset) == COMMUNITY_LEARNSET_TOO_LONG);
+    assert(CommunityLearnset_FromEntries(NULL, COMMUNITY_LEARNSET_CAPACITY + 1, &learnset) == COMMUNITY_LEARNSET_TOO_LONG);
+
+    /* Distinct modern byte format, bounded independently from legacy input. */
+    MakeModern(23);
+    assert(CommunityLearnset_DecodeModern(modern, modernLength, &learnset) == COMMUNITY_LEARNSET_OK && learnset.count == 23);
+    for (size_t i = 0; i < 23; i++) assert(learnset.entries[i].move == 512 + i && learnset.entries[i].level == 1);
+    assert(CommunityLearnset_DecodeModern(modern, modernLength, NULL) == COMMUNITY_LEARNSET_INVALID);
+    assert(CommunityLearnset_DecodeModern(NULL, modernLength, &learnset) == COMMUNITY_LEARNSET_INVALID && learnset.count == 0);
+    assert(CommunityLearnset_DecodeModern(modern, 0, &learnset) == COMMUNITY_LEARNSET_INVALID && learnset.count == 0);
+    assert(CommunityLearnset_DecodeModern(modern, 3, &learnset) == COMMUNITY_LEARNSET_INVALID && learnset.count == 0);
+    assert(CommunityLearnset_DecodeModern(modern, sizeof(modern), &learnset) == COMMUNITY_LEARNSET_INVALID && learnset.count == 0);
+    assert(CommunityLearnset_DecodeModern(modern, 23 * 4, &learnset) == COMMUNITY_LEARNSET_UNTERMINATED && learnset.count == 0);
+    WriteModernWord(24, 1); /* Nonzero material after sentinel is invalid padding. */
+    assert(CommunityLearnset_DecodeModern(modern, modernLength, &learnset) == COMMUNITY_LEARNSET_INVALID && learnset.count == 0);
+    WriteModernWord(24, UINT32_MAX);
+    assert(CommunityLearnset_DecodeModern(modern, modernLength, &learnset) == COMMUNITY_LEARNSET_INVALID && learnset.count == 0);
+    MakeModern(32);
+    assert(CommunityLearnset_DecodeModern(modern, modernLength, &learnset) == COMMUNITY_LEARNSET_OK && learnset.count == 32);
+    uint16_t breedingMoves[50];
+    for (size_t i = 0; i < 50; i++) breedingMoves[i] = 999;
+    assert(CommunityLearnset_CopyMoveIds(&learnset, breedingMoves, 50) == 32);
+    for (size_t i = 0; i < 32; i++) assert(breedingMoves[i] == 512 + i);
+    assert(breedingMoves[32] == 999);
+    MakeModern(33);
+    assert(CommunityLearnset_DecodeModern(modern, modernLength, &learnset) == COMMUNITY_LEARNSET_TOO_LONG && learnset.count == 0);
+    MakeModern(0);
+    assert(CommunityLearnset_DecodeModern(modern, modernLength, &learnset) == COMMUNITY_LEARNSET_OK && learnset.count == 0);
+    MakeModern(1);
+    WriteModernWord(0, (128u << 16) | 512);
+    assert(CommunityLearnset_DecodeModern(modern, modernLength, &learnset) == COMMUNITY_LEARNSET_INVALID && learnset.count == 0);
+    WriteModernWord(0, (1u << 16) | UINT16_MAX);
+    assert(CommunityLearnset_DecodeModern(modern, modernLength, &learnset) == COMMUNITY_LEARNSET_INVALID && learnset.count == 0);
+    WriteModernWord(0, (91u << 16) | 821);
+    assert(CommunityLearnset_DecodeModern(modern, 8, &learnset) == COMMUNITY_LEARNSET_OK);
+    assert(learnset.count == 1 && learnset.entries[0].move == 821 && learnset.entries[0].level == 91);
+    MakeModern(2);
+    WriteModernWord(1, (1u << 16) | 512);
+    assert(CommunityLearnset_DecodeModern(modern, modernLength, &learnset) == COMMUNITY_LEARNSET_OK);
+    assert(learnset.entries[0].move == 512 && learnset.entries[1].move == 512);
 
     /* Actual Move Reminder consumer, using a local source-provider double. */
     Pokemon mon = { .species = 133, .form = 0, .level = 20, .moves = { 10, 0, 0, 0 } };
@@ -107,6 +159,18 @@ int main(void)
     mon.moves[0] = 512; mon.level = 40;
     reminder = MoveReminderData_GetMoves(&mon, 0);
     assert(reminder[0] == 700 && reminder[1] == 65534 && reminder[2] == UINT16_MAX);
+    Heap_Free(reminder);
+    useExpanded = 2;
+    MakeModern(23);
+    mon.moves[0] = 0; mon.level = 100;
+    reminder = MoveReminderData_GetMoves(&mon, 0);
+    for (size_t i = 0; i < 23; i++) assert(reminder[i] == 512 + i);
+    assert(reminder[23] == UINT16_MAX);
+    Heap_Free(reminder);
+    MakeModern(32);
+    reminder = MoveReminderData_GetMoves(&mon, 0);
+    for (size_t i = 0; i < 32; i++) assert(reminder[i] == 512 + i);
+    assert(reminder[32] == UINT16_MAX);
     Heap_Free(reminder);
     useExpanded = 0; words = 20; /* No terminator: empty safe result. */
     reminder = MoveReminderData_GetMoves(&mon, 0);
