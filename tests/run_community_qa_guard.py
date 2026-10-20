@@ -46,8 +46,10 @@ int main(void){
     modern=0;assert(!CommunityQA_TryStart(&p));modern=1;
     cap=100;assert(!CommunityQA_TryStart(&p));cap=14;
     Env("PLATINUM_COMMUNITY_QA_SCENE","unknown");assert(!CommunityQA_TryStart(&p)&&queued==0);
-    const char* names[]={"wild-fairy","double-balls","trainer-balls"};
-    for(int i=0;i<3;i++){Env("PLATINUM_COMMUNITY_QA_SCENE",names[i]);assert(CommunityQA_TryStart(&p)&&sScene==i+1&&queued==i+1);}
+    const char* names[]={"wild-fairy","double-balls","trainer-balls","wild-sylveon"};
+    for(int i=0;i<4;i++){Env("PLATINUM_COMMUNITY_QA_SCENE",names[i]);assert(CommunityQA_TryStart(&p)&&sScene==i+1&&queued==i+1);}
+    Env("PLATINUM_COMMUNITY_QA_SCENE","wild-sylveon");modern=0;assert(!CommunityQA_TryStart(&p));modern=1;
+    cap=100;assert(!CommunityQA_TryStart(&p));cap=14;
     puts("Actual QA startup guard: opt-in confirmation, fresh empty profile, stored/corrupt/new-game refusal and bounded scene selection passed.");
 }
 '''.replace("GUARD", guard)

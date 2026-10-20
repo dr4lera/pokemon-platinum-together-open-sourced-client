@@ -1,4 +1,6 @@
 #include "pokemon_icon.h"
+#include "port/community_catalog.h"
+#include "port/community_modern_rules.h"
 
 #include <nitro.h>
 #include <string.h>
@@ -43,6 +45,10 @@ u32 PokeIconSpriteIndex(u32 species, u32 isEgg, u32 form)
 
         return IconTilesIndex(ICON_EGG);
     }
+
+    unsigned modernIndex;
+    uint8_t modernPalette;
+    if (CommunityModernRules_Enabled() && CommunityCatalog_Icon(CommunityCatalog_Runtime(), species, &modernIndex, &modernPalette)) return modernIndex;
 
     form = Pokemon_SanitizeFormId(species, form);
 
@@ -114,6 +120,10 @@ u16 BoxPokemon_IconFormOffset(const BoxPokemon *boxMon)
 
 const u8 PokeIconPaletteIndex(u32 species, u32 form, u32 isEgg)
 {
+    unsigned modernIndex;
+    uint8_t modernPalette;
+    if (isEgg != TRUE && CommunityModernRules_Enabled() && CommunityCatalog_Icon(CommunityCatalog_Runtime(), species, &modernIndex, &modernPalette)) return modernPalette;
+
     if (isEgg == TRUE) {
         if (species == SPECIES_MANAPHY) {
             species = ICON_MANAPHY_EGG;

@@ -31,11 +31,11 @@ prepared, unmodified copy of the supplied game.
 | Accounts, parties, chat | Native signed adapter and real-backend fixtures pass; game UI compiles | Rendered flow and packaged HTTPS checks; friends/Inverna actors |
 | Native wireless battles/trades | Own Service, signed game-link backend and semantic WM provider implemented; two-adapter discovery/join/data/cancellation fixtures pass | Two actual source games through native battle/trade screens and interruption recovery |
 | Shared-world co-op/Inverna | User-confirmed on prepared reference clients | Source gameplay implementation and two-client parity checks |
-| Modern species, abilities, forms, moves | Strict V3 numeric catalog, early personal/learnset/evolution consumers and six Fairy moves compile and pass fixtures | Graphics, remaining move/ability behavior, cries, registration, dex/save integration |
+| Modern species, abilities, forms, moves | Strict V3 numeric catalog, early personal/learnset/evolution consumers and six Fairy moves compile and pass fixtures | Runtime graphics verification, remaining move/ability behavior, cries, registration, dex/save integration |
 | Learnset representation | Bounded decoders and V3 provider compile; all65 hash-pinned lists match offline; supplements and actual consumer fixtures pass | Full later-move behavior and runtime per-species verification |
 | Saves/trade recovery | Reference format and journal partly inspected | Own compatible IO, closed-copy migration, interruption checks |
 | Rendering, controls, audio, story | Public base engine available | Match reference behavior and chosen/custom trainer appearances |
-| 0.1.10 additions | Announced; artifact unavailable | Released artifact and separate comparison |
+| 0.1.10 additions | Installed artifact independently hash-pinned; private archive comparison started | Separate code/behavior audit and tested update adapters |
 
 ## Explicit deviations requested
 
@@ -74,6 +74,33 @@ be privately merged with only the six reviewed scripts, particle485 and icon343.
 Whole patched animation archives are not enabled by the restricted overlay.
 
 Next acceptance work: actual battle scenes and two-client native application
-flows, then bounded modern graphics/resources, remaining move/ability semantics,
+flows, then remaining move/ability semantics,
 dex/save compatibility and Together world/appearance behavior. Keep source
 milestones public while the gameplay binary release remains gated by evidence.
+
+The next bounded graphics unit now routes modern sprite templates, heights,
+89-byte animation/shadow records and icons before legacy resource access. Its
+actual-consumer fixture covers65 IDs/four graphics forms, front/back/gender/shiny,
+egg/Spinda fallback and signed fields. Private append-only graphics and six-bank
+text preparation preserve original resources and pass structural tests; they
+contain no bundled assets. A character-sprite ownership fix retains NCGR data
+through decrypt/Spinda/tiling and passes a regression that fails the old source.
+The desktop SDK palette loader now handles validated packed palettes with a
+larger expanded VRAM extent. The full Windows client links with these changes;
+actual modern species rendering and native battle completion remain pending.
+
+## Newly available update reference
+
+The user installed0.1.10 on2026-10-20 and requested comparison. Its package
+manifest identifies0.1.10; the18,513,408-byte executable has SHA256
+`45185bc3f1849c6b93910efef451ea70cd7a03fd81dd4733e736eae65ed0b4d8`.
+The PE version resource still reports0.1.7, so it is not used as the identity.
+A separate private snapshot verifies all14 package-owned patch archives against
+the installer hashes: six match the retained0.1.7 copy, seven changed and one
+was added. Changed resources include battle subscripts, field scripts/matrices,
+text, species graphics/icons, particles and move animations. The separate native
+reference analysis is underway; this is availability/inventory evidence, not
+proof that update features are implemented or that servers accept its client.
+Existing0.1.7 private importers remain pinned and deliberately reject this new
+executable. The source client continues from the tested baseline while update
+differences are reviewed and adapted explicitly.

@@ -60,3 +60,10 @@ Native online and actual wireless-provider fixtures are documented separately.
 The Windows workflow builds the full client, then runs these against pinned
 backend source with fresh temporary profiles. No ROM or reference installation
 is required by that workflow.
+
+For bounded private species text preparation, use
+`python tools/community/prepare-species-text.py --source-archive <generated-pl_msg.narc> --reference-archive <user-supplied-pinned-pl_msg.narc> --output <fresh-private-directory>`.
+The tool never copies a complete patched text archive; it validates six selected
+banks and preserves every other generated bank. Keep output outside the checkout
+and do not upload it. `python tests/run_community_species_text.py` checks synthetic
+encoded-bank and selective-merge failure cases without game files.

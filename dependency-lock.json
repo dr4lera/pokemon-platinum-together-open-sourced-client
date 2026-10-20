@@ -9,7 +9,7 @@
   },
   "subprojects": {
     "libntr": "d66f6f058e4b985afce3dcb14a44dfa66a47657e",
-    "libntrsystem": "d18bcfbc24842a818845968082bab8570466c363",
+    "libntrsystem": "bc08b00f9a588a6a658fe3832d7e113f81647311",
     "libntrwifi": "067dabb137dfaf80b8ceeb3b3c4a7256bfabc3e0",
     "libntrdwc": "16246ba7b4269e6686f3e4da068e3c996a103739",
     "libvct": "a34ad47fc0d7d964483c287759b704b3b1f3b967",

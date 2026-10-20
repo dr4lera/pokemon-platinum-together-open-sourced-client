@@ -68,6 +68,10 @@ jobs:
           if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
           python tests/run_community_evolutions.py
           if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+          python tests/run_community_species_graphics.py
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+          python tests/run_community_character_sprite.py
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
           python tests/run_community_qa_guard.py
           if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
           python tests/run_community_asset_overlay.py
@@ -75,6 +79,8 @@ jobs:
           python tests/run_community_wireless.py
           if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
           python tests/run_community_wireless_core.py
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+          python tests/run_community_species_text.py
           if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
           python tests/run_community_modern_assets.py
           if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}

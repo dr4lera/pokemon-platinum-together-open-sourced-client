@@ -80,3 +80,20 @@ separate fresh profiles and no OS keyboard/mouse injection.
 No full species roster, modern ability catalog, Together world/co-op behavior,
 save migration or 1:1 parity is established. These remain release acceptance
 items; private assets and reference-derived caches are not part of the source.
+
+The subsequent native run reaches the actual battle move menu. Its captured
+frame shows the Fairy Moonblast button/name/palette and the caught-ball marker
+beside Bidoof. Original sprite palettes also needed normalization of the exact
+nitrogfx compNum10 format metadata; its guarded72-byte actual-loader regression
+passes and other unknown flags remain rejected. A full battle outcome is still
+pending. The character fixture additionally verifies the actual20x10 two-frame
+packed path used by trades: all6400 bytes, animated Spinda and output canaries;
+it fails the previous one-frame-only copier and passes the repaired source.
+
+The repaired native Fairy scene subsequently completed normally: victory result1,
+one turn, foreign-OT level14 Clefairy, EXP2195 before/after, three Poke Balls and
+one Master Ball unchanged, zero throws. A separate fresh Sylveon scene also
+completed with EXP2744 unchanged. Its own framebuffer shows the encoded species
+name and correctly routed back sprite/height/shadow in the actual battle. Both
+scenes exited with no save. These are single-client battle/render checks, not
+two-client battle/trade, full animation parity or all-species acceptance.

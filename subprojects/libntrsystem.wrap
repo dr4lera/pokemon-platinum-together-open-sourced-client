@@ -1,6 +1,6 @@
 [wrap-git]
 url = https://github.com/dr4lera/pokemon-platinum-together-open-sourced-runtime-system.git
-revision = d18bcfbc24842a818845968082bab8570466c363
+revision = bc08b00f9a588a6a658fe3832d7e113f81647311
 depth = 1
 directory = libntrsystem
 

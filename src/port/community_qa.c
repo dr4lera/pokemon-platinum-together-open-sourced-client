@@ -60,7 +60,9 @@ static BOOL Init(ApplicationManager *manager,int *state)
     Options_SetTextSpeed(SaveData_GetOptions(save),OPTIONS_TEXT_SPEED_FAST);
     Options_SetBattleScene(SaveData_GetOptions(save),OPTIONS_BATTLE_SCENE_ON);
     Party *party=SaveData_GetParty(save); Party_Init(party);
-    AddMon(party,SPECIES_CLEFAIRY,14,0x87654321,CommunityModernRules_Enabled());
+    // The isolated Sylveon scene stays below its first unsupported later move.
+    // It exercises graphics routing, not complete species/ability registration.
+    AddMon(party,sScene==4 ? 552 : SPECIES_CLEFAIRY,14,0x87654321,CommunityModernRules_Enabled());
     if (sScene==2) AddMon(party,SPECIES_PIKACHU,14,0x87654321,0);
     Bag *bag=SaveData_GetBag(save);
     Bag_TryAddItem(bag,ITEM_POKE_BALL,3,HEAP_ID_APPLICATION);
@@ -117,11 +119,11 @@ BOOL CommunityQA_TryStart(SaveData *saveData)
         || !SaveData_IsNewGameData(saveData) || SaveData_LoadCheckStatus(saveData)!=0) {
         fprintf(stderr,"Community QA scene refused: requires explicit confirmation and a fresh profile without stored game data.\n"); fflush(stderr); return FALSE;
     }
-    if (!strcmp(name,"wild-fairy")) {
+    if (!strcmp(name,"wild-fairy") || !strcmp(name,"wild-sylveon")) {
         if (!CommunityModernRules_Enabled() || CommunityRules_CurrentLevelCap()!=14) {
             fprintf(stderr,"Community QA Fairy scene requires the validated modern gate and initial world cap14.\n"); fflush(stderr); return FALSE;
         }
-        sScene=1;
+        sScene=!strcmp(name,"wild-sylveon") ? 4 : 1;
     }
     else if (!strcmp(name,"double-balls")) sScene=2;
     else if (!strcmp(name,"trainer-balls")) sScene=3;

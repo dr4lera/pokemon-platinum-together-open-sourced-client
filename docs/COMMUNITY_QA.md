@@ -1,7 +1,7 @@
 # Private source-client scenes
 
-`PLATINUM_COMMUNITY_QA_SCENE` explicitly selects `wild-fairy`, `double-balls` or
-`trainer-balls`. It also requires `PLATINUM_COMMUNITY_QA_CONFIRM_FRESH=1`, no
+`PLATINUM_COMMUNITY_QA_SCENE` explicitly selects `wild-fairy`, `wild-sylveon`,
+`double-balls` or `trainer-balls`. It also requires `PLATINUM_COMMUNITY_QA_CONFIRM_FRESH=1`, no
 stored game, a new-game state and a clean load status. Existing or unreadable
 profiles are refused. With no scene selected, ordinary startup is unchanged.
 These development scenes mutate only the fresh in-memory game and call no game
@@ -13,6 +13,12 @@ three Poke Balls and one Master Ball. Bidoof is registered caught; Starly in the
 double scene is merely seen. The Fairy scene requires a validated modern gate
 and initial world cap14; it never silently substitutes another move. Trainer
 mode loads a valid existing trainer record so prize-money handling remains valid.
+
+The Sylveon scene selects internal species552 at level14, before its first
+unsupported later move. It requires the same modern gate/cap plus the privately
+prepared species graphics and text. It exercises the actual battle's modern
+sprite routing; it does not establish full ability behavior, species registration,
+modern dex persistence or an ordinary playable profile.
 
 For unattended UI checks, the runtime's optional private scenario file supplies
 bounded frame/button-mask records, and the optional framebuffer capture reads

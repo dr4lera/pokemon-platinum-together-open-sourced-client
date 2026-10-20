@@ -2844,12 +2844,23 @@ void BoxPokemon_BuildSpriteTemplate(PokemonSpriteTemplate *spriteTemplate, BoxPo
     BoxPokemon_ExitDecryptionContext(mon, reencrypt);
 }
 
+static BOOL BuildCommunityPokemonSpriteTemplate(PokemonSpriteTemplate *spriteTemplate, u16 species, u8 gender, u8 face, u8 shiny, u8 form)
+{
+    unsigned index;
+    if (!CommunityModernRules_Enabled() || !CommunityCatalog_SpriteIndex(CommunityCatalog_Runtime(), species, form, &index)) return FALSE;
+    spriteTemplate->narcID = NARC_INDEX_POKETOOL__POKEGRA__PL_POKEGRA;
+    spriteTemplate->character = index * 6 + face + (gender != GENDER_FEMALE ? 1 : 0);
+    spriteTemplate->palette = index * 6 + 4 + shiny;
+    return TRUE;
+}
+
 void BuildPokemonSpriteTemplate(PokemonSpriteTemplate *spriteTemplate, u16 species, u8 gender, u8 face, u8 shiny, u8 form, u32 personality)
 {
     spriteTemplate->spindaSpots = 0;
     spriteTemplate->dummy = 0;
     spriteTemplate->personality = 0;
     form = Pokemon_SanitizeFormId(species, form);
+    if (BuildCommunityPokemonSpriteTemplate(spriteTemplate, species, gender, face, shiny, form)) return;
 
     switch (species) {
     case SPECIES_BURMY:
@@ -3047,6 +3058,7 @@ static void BuildPokemonSpriteTemplateDP(PokemonSpriteTemplate *spriteTemplate, 
     spriteTemplate->personality = 0;
 
     form = Pokemon_SanitizeFormId(species, form);
+    if (BuildCommunityPokemonSpriteTemplate(spriteTemplate, species, gender, face, shiny, form)) return;
 
     switch (species) {
     case SPECIES_BURMY:
@@ -3203,6 +3215,8 @@ u8 BoxPokemon_SpriteYOffset(BoxPokemon *boxMon, u8 face, BOOL preferDP)
 u8 LoadPokemonSpriteYOffset(u16 species, u8 gender, u8 face, u8 form, u32 personality)
 {
     form = Pokemon_SanitizeFormId(species, form);
+    u8 modernHeight;
+    if (CommunityModernRules_Enabled() && CommunityCatalog_SpriteHeight(CommunityCatalog_Runtime(), species, form, face, &modernHeight)) return modernHeight;
 
     enum NarcID narcID;
     int memberIndex;
@@ -3292,6 +3306,8 @@ static u8 LoadPokemonDPSpriteHeight(u16 species, u8 gender, u8 face, u8 form, u3
 {
     // TODO enum values?
     form = Pokemon_SanitizeFormId(species, form);
+    u8 modernHeight;
+    if (CommunityModernRules_Enabled() && CommunityCatalog_SpriteHeight(CommunityCatalog_Runtime(), species, form, face, &modernHeight)) return modernHeight;
 
     enum NarcID narcID;
     int memberIndex;
@@ -5215,12 +5231,18 @@ static inline int Pokemon_Face(int clientType)
     return (clientType & 1) ? 0 : 1;
 }
 
+static void LoadPokemonSpriteData(NARC *narc, u16 species, SpeciesSpriteData *out)
+{
+    if (CommunityModernRules_Enabled() && CommunityCatalog_SpriteData(CommunityCatalog_Runtime(), species, (uint8_t *)out)) return;
+    NARC_ReadFromMember(narc, 0, species * sizeof(SpeciesSpriteData), sizeof(SpeciesSpriteData), out);
+}
+
 void PokemonSprite_LoadAnimFrames(NARC *narc, SpriteAnimFrame *frames, u16 species, u16 clientType)
 {
     int face = Pokemon_Face(clientType);
 
     SpeciesSpriteData data;
-    NARC_ReadFromMember(narc, 0, species * sizeof(SpeciesSpriteData), sizeof(SpeciesSpriteData), &data);
+    LoadPokemonSpriteData(narc, species, &data);
     MI_CpuCopy8(data.faceAnims[face].frames, frames, sizeof(SpriteAnimFrame) * MAX_ANIMATION_FRAMES);
 }
 
@@ -5229,7 +5251,7 @@ void PokemonSprite_LoadAnim(NARC *narc, PokemonAnimManager *monAnimMan, PokemonS
     int faceType = (face == FACE_FRONT) ? 0 : 1;
 
     SpeciesSpriteData spriteData;
-    NARC_ReadFromMember(narc, 0, species * sizeof(SpeciesSpriteData), sizeof(SpeciesSpriteData), &spriteData);
+    LoadPokemonSpriteData(narc, species, &spriteData);
 
     PokemonAnimTemplate animTemplate;
     animTemplate.animation = spriteData.faceAnims[faceType].animation;
@@ -5244,7 +5266,7 @@ void PokemonSprite_LoadCryDelay(NARC *narc, u8 *cryDelay, u16 species, u16 clien
     int face = Pokemon_Face(clientType);
 
     SpeciesSpriteData data;
-    NARC_ReadFromMember(narc, 0, species * sizeof(SpeciesSpriteData), sizeof(SpeciesSpriteData), &data);
+    LoadPokemonSpriteData(narc, species, &data);
 
     *cryDelay = data.faceAnims[face].cryDelay;
 }
@@ -5253,7 +5275,7 @@ void PokemonSprite_LoadYOffset(NARC *narc, s8 *yOffset, u16 species)
 {
     SpeciesSpriteData data;
 
-    NARC_ReadFromMember(narc, 0, species * sizeof(SpeciesSpriteData), sizeof(SpeciesSpriteData), &data);
+    LoadPokemonSpriteData(narc, species, &data);
     *yOffset = data.yOffset;
 }
 
@@ -5261,7 +5283,7 @@ void PokemonSprite_LoadXOffsetShadow(NARC *narc, s8 *xOffsetShadow, u16 species)
 {
     SpeciesSpriteData data;
 
-    NARC_ReadFromMember(narc, 0, species * sizeof(SpeciesSpriteData), sizeof(SpeciesSpriteData), &data);
+    LoadPokemonSpriteData(narc, species, &data);
     *xOffsetShadow = data.xOffsetShadow;
 }
 
@@ -5269,7 +5291,7 @@ void PokemonSprite_LoadShadowSize(NARC *narc, u8 *shadowSize, u16 species)
 {
     SpeciesSpriteData data;
 
-    NARC_ReadFromMember(narc, 0, species * sizeof(SpeciesSpriteData), sizeof(SpeciesSpriteData), &data);
+    LoadPokemonSpriteData(narc, species, &data);
     *shadowSize = data.shadowSize;
 }
 

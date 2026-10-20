@@ -18,7 +18,12 @@ the user's explicit deviations: world level caps apply regardless of original
 trainer; foreign OT does not add obedience restrictions; ordinary Poké Balls
 target only wild Pokémon and require exactly one remaining opponent; every
 actual throw must consume a ball; caught species show the native battle marker.
-The announced 0.1.10 artifact is unavailable and must not be fabricated.
+A separate 0.1.10 artifact is now installed and user-authorized for comparison:
+SHA256 45185bc3f1849c6b93910efef451ea70cd7a03fd81dd4733e736eae65ed0b4d8,
+18,513,408 bytes. The install manifest identifies0.1.10; its PE version field
+still reads0.1.7. Keep this version's evidence and extraction offsets separate
+from the0.1.7 baseline. Port verified update differences with explicit tests and
+compatibility changes; do not silently combine data from different versions.
 
 Record implemented, code-inspected, built, and in-game-verified scope separately
 in docs/MIGRATION_STATUS.md. Never advertise full 1:1 parity before its acceptance
