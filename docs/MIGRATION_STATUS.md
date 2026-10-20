@@ -31,7 +31,7 @@ prepared, unmodified copy of the supplied game.
 | Accounts, friends, Inverna | Our backend implemented and tested | Own native client protocol integration |
 | Co-op/relay, battles, trades | User-confirmed on reference clients | Own client implementation and two-client parity checks |
 | Modern species, abilities, forms, moves | Present in supplied 0.1.7 assets/code | Version-pinned catalog and complete battle behavior coverage |
-| Learnset representation | Bounded separate move/level API and legacy decoder; engine consumers compile; C checks include IDs above 511 | Modern record provider/catalog and runtime verification |
+| Learnset representation | Bounded legacy/modern decoders and engine consumers compile; all 65 hash-pinned modern reference lists match offline | Modern record provider/catalog and runtime verification |
 | Saves/trade recovery | Reference format and journal partly inspected | Own compatible IO, closed-copy migration, interruption checks |
 | Rendering, controls, audio, story | Public base engine available | Match reference behavior and chosen/custom trainer appearances |
 | 0.1.10 additions | Announced; artifact unavailable | Released artifact and separate comparison |
@@ -50,7 +50,8 @@ HUD marker for caught species, including received trades; merely seen is distinc
 See [the source validation record](VALIDATION.md) for the precise build and test
 boundary. A successfully linked executable is an early migration milestone.
 
-Launcher/server dev12 releases remain paused during the client migration. Source
+The combined, Inverna and world server dev12 previews are published separately.
+Gameplay-client binary releases remain paused during the migration. Source
 milestones must be labeled accurately. A source checkout, successful build, or
 isolated rule test does not establish a complete independently playable client,
 Together multiplayer support, or 1:1 parity. Never include ROMs, copied game

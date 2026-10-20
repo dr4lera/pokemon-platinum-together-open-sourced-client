@@ -1,5 +1,8 @@
 # Retained native reference export
 
+For a new reference project, use the [version 2 workflow](REFERENCE_EXPORT_V2.md).
+This page describes the retained first-version exporter for existing projects.
+
 `tools/community/export-reference.ps1` runs the installed Ghidra headless analyzer
 against a hash-verified copy of the selected reference. It never executes or
 patches the game. The output must be outside this public source checkout.
@@ -25,15 +28,26 @@ code, global data/type recovery, assets and runtime behavior remain outside this
 function export's guarantees. Even zero recorded function failures would not
 prove that every original function was recognized or that the output rebuilds.
 
-Use the same command with `-Resume` to reuse a matching retained project and
-hash-verified function outputs. Completed auto-analysis is reused; interrupted
-analysis runs again against its saved project. Keep timeout/errors explicit and
-inspect `coverage.json`, rather than treating Ghidra's process exit as completion.
-The wrapper rejects mismatched reference, Ghidra or exporter revisions.
+Before using `-Resume`, confirm Ghidra's successful program save in the original
+log. The first import saves after the export script finishes; its in-memory
+analysis marker alone is insufficient. Preserve the original index, coverage and
+logs before retrying, and record the retry's actual timeout separately. Successful
+function bodies can be reused, but this legacy cache only checks paired file
+hashes. The wrapper checks reference, Ghidra and exporter revisions; V2 adds a
+saved-project checkpoint and stronger cache/run identity.
 
-The exporter compiles against the installed Ghidra 12.1.4 APIs. The first full
-0.1.7 export was started on 2026-10-20 and is still being assessed; this document
-does not claim completed decompilation or recovered original source. REA's
+The legacy function total includes externals while its iterator visits internal
+functions only. Its completion flag therefore requires a separate internal /
+external count reconciliation. An interrupted retry may leave old coverage;
+never accept an earlier report as evidence that the current run finished.
+
+The exporter compiles against the installed Ghidra 12.1.4 APIs. The retained
+0.1.7 export saved its project on 2026-10-20. Eight initial failures succeeded on
+a 60-second retry. A separate read-only audit reconciled 65,152 recognized
+internal functions and 558 external functions, and checked every internal body's
+artifact/address header and SHA-256 against its index. All recognized internal
+bodies have pseudocode; this does not establish undiscovered-code coverage,
+semantic correctness, buildable original source or gameplay parity. REA's
 ephemeral analysis exceeded its 300-second request timeout; this retained run
 allows longer analysis without repeatedly discarding its project.
 
